@@ -2,6 +2,7 @@ import type { CheckIn, Exercise, TrainingDay } from "./types.js";
 import { computeMuscleFatigue } from "./fatigueEngine.js";
 import { decideProgression, type SessionLogEntry } from "./progression.js";
 import type { WeeklyPlan } from "./weeklyPlan.js";
+import { muscleName } from "../data/muscles.js";
 
 // Grupos musculares "grandes" (§24 del brief): su fatiga sostenida es la
 // señal más fiable de acumulación real, más que cualquier músculo pequeño
@@ -48,7 +49,7 @@ export function shouldRecommendDeloadWeek(inputs: DeloadWeekInputs): DeloadWeekS
   if (maxLargeMuscleFatigue >= LARGE_MUSCLE_FATIGUE_THRESHOLD) {
     const worstMuscle = LARGE_MUSCLE_GROUPS[largeMuscleFatigues.indexOf(maxLargeMuscleFatigue)];
     reasons.push(
-      `Fatiga de "${worstMuscle}" en ${Math.round(maxLargeMuscleFatigue)}/100, por encima del umbral de descarga.`,
+      `Fatiga de "${muscleName(worstMuscle!)}" en ${Math.round(maxLargeMuscleFatigue)}/100, por encima del umbral de descarga.`,
     );
   }
 

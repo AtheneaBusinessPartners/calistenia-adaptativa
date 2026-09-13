@@ -125,7 +125,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="flex gap-4 text-sm">
+      <div className="flex flex-wrap gap-4 text-sm">
         <Link href="/history" className="text-[var(--accent)]">
           Historial
         </Link>
@@ -134,6 +134,9 @@ export default async function DashboardPage() {
         </Link>
         <Link href="/skills" className="text-[var(--accent)]">
           Árbol de skills
+        </Link>
+        <Link href="/exercises" className="text-[var(--accent)]">
+          Biblioteca de ejercicios
         </Link>
       </div>
     </main>

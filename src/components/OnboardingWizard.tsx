@@ -46,6 +46,16 @@ const GOAL_OPTIONS: { id: GoalId; label: string; emoji: string }[] = [
   { id: "specific_skill", label: "Conseguir una skill concreta", emoji: "🎯" },
 ];
 
+const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "L" },
+  { value: 2, label: "M" },
+  { value: 3, label: "X" },
+  { value: 4, label: "J" },
+  { value: 5, label: "V" },
+  { value: 6, label: "S" },
+  { value: 0, label: "D" },
+];
+
 const ENVIRONMENT_ICONS: Record<string, string> = {
   pure_calisthenics: "🤸",
   calisthenics_plus_gym: "🏋️",
@@ -80,10 +90,21 @@ export function OnboardingWizard() {
   const [primarySkillTarget, setPrimarySkillTarget] = useState<string>(SKILLS[0]!.id);
 
   const [availability, setAvailability] = useState({
-    daysPerWeek: 4,
     sessionDurationMinutes: 45,
     minSessionDurationMinutes: 20,
   });
+  // 0=domingo..6=sábado (Date#getUTCDay()) — mismo criterio que usa el
+  // calendario de /history para marcar qué días concretos tocan entrenar.
+  const [trainingDays, setTrainingDays] = useState<number[]>([1, 2, 3, 4, 5]);
+
+  function toggleTrainingDay(day: number) {
+    setTrainingDays((prev) => {
+      const isChecked = prev.includes(day);
+      if (isChecked && prev.length <= 2) return prev;
+      if (!isChecked && prev.length >= 6) return prev;
+      return isChecked ? prev.filter((d) => d !== day) : [...prev, day];
+    });
+  }
 
   const [environmentId, setEnvironmentId] = useState("home");
 
@@ -146,7 +167,8 @@ export function OnboardingWizard() {
       goals,
       primaryGoal,
       primarySkillTarget: primaryGoal === "specific_skill" ? primarySkillTarget : undefined,
-      daysPerWeek: availability.daysPerWeek,
+      daysPerWeek: trainingDays.length,
+      trainingDays,
       sessionDurationMinutes: availability.sessionDurationMinutes,
       minSessionDurationMinutes: availability.minSessionDurationMinutes,
       equipment,
@@ -299,13 +321,29 @@ export function OnboardingWizard() {
 
       {step === "availability" && (
         <Section title="Disponibilidad">
-          <NumberField
-            label="Días por semana"
-            value={availability.daysPerWeek}
-            onChange={(v) => setAvailability((a) => ({ ...a, daysPerWeek: Math.min(6, Math.max(2, v)) }))}
-            min={2}
-            max={6}
-          />
+          <div className="flex flex-col gap-2 text-sm">
+            <span>¿Qué días quieres entrenar?</span>
+            <div className="flex gap-2">
+              {WEEKDAY_OPTIONS.map((w) => {
+                const active = trainingDays.includes(w.value);
+                return (
+                  <button
+                    key={w.value}
+                    type="button"
+                    onClick={() => toggleTrainingDay(w.value)}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm ${
+                      active ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"
+                    }`}
+                  >
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-xs text-[var(--muted)]">
+              {trainingDays.length} día{trainingDays.length === 1 ? "" : "s"} por semana. Los verás marcados en tu calendario.
+            </span>
+          </div>
           <NumberField
             label="Duración habitual de la sesión (min)"
             value={availability.sessionDurationMinutes}
@@ -413,7 +451,7 @@ export function OnboardingWizard() {
         <Section title="Todo listo">
           <p className="mb-4 text-sm text-[var(--muted)]">
             {profile.age} años · objetivo principal: {GOAL_OPTIONS.find((g) => g.id === primaryGoal)?.label} ·{" "}
-            {availability.daysPerWeek} días/semana · {answered.length} ejercicios evaluados.
+            {trainingDays.length} días/semana · {answered.length} ejercicios evaluados.
           </p>
           {submitError && <p className="mb-3 text-sm text-[var(--danger)]">{submitError}</p>}
           <button

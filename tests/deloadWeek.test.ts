@@ -83,7 +83,7 @@ describe("shouldRecommendDeloadWeek (§24 del brief)", () => {
       exercisesInProgress: [],
     });
     expect(signal.recommend).toBe(true);
-    expect(signal.reasons.some((r) => r.includes("chest") || r.includes("lats"))).toBe(true);
+    expect(signal.reasons.some((r) => r.includes("Pectoral") || r.includes("Dorsal ancho"))).toBe(true);
   });
 
   it("una semana normal y sostenible (RIR moderado, volumen moderado) NO recomienda descarga", () => {

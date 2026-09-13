@@ -158,6 +158,14 @@ export interface UserProfile {
   primaryGoal: GoalId;
   primarySkillTarget?: string; // Skill.id, si primaryGoal === "specific_skill" o similar
   daysPerWeek: number;
+  /** Días de la semana en los que prefiere entrenar — 0=domingo..6=sábado
+   * (mismo criterio que `Date#getUTCDay()`), para que el calendario
+   * (FASE 4) pueda marcar qué días concretos tocan sin que el motor tenga
+   * que saber nada de fechas reales. Opcional: no afecta a
+   * generateWeeklyPlan (que solo genera `daysPerWeek` días de plantilla,
+   * sin atarlos a un día de calendario — ver planForToday.ts), solo a la
+   * UI del calendario. */
+  trainingDays?: number[];
   sessionDurationMinutes: number;
   minSessionDurationMinutes: number;
   equipment: EquipmentId[];

@@ -21,3 +21,11 @@ export const MUSCLES: Muscle[] = [
   { id: "glutes", name: "Glúteos", group: "legs" },
   { id: "calves", name: "Gemelos", group: "legs" },
 ];
+
+export const MUSCLES_BY_ID: Record<string, Muscle> = Object.fromEntries(MUSCLES.map((m) => [m.id, m]));
+
+/** Nombre en español de un músculo por su id — con fallback al propio id
+ * por si alguna vez apareciera uno no catalogado, en vez de reventar. */
+export function muscleName(id: string): string {
+  return MUSCLES_BY_ID[id]?.name ?? id;
+}

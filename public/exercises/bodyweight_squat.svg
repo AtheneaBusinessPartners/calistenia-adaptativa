@@ -1,0 +1,35 @@
+<svg viewBox="0 0 420 220" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="420" height="220" fill="#14171f" />
+
+  <!-- suelo -->
+  <line x1="30" y1="185" x2="180" y2="185" stroke="#262a35" stroke-width="2" />
+  <line x1="240" y1="185" x2="390" y2="185" stroke="#262a35" stroke-width="2" />
+
+  <!-- figura 1: de pie -->
+  <g stroke="#22d3ee" stroke-width="4" stroke-linecap="round" fill="none">
+    <circle cx="105" cy="45" r="13" fill="#22d3ee" stroke="none" />
+    <line x1="105" y1="58" x2="105" y2="120" />
+    <line x1="105" y1="70" x2="80" y2="95" />
+    <line x1="105" y1="70" x2="130" y2="95" />
+    <line x1="105" y1="120" x2="90" y2="185" />
+    <line x1="105" y1="120" x2="120" y2="185" />
+  </g>
+  <text x="105" y="210" fill="#9aa1af" font-family="sans-serif" font-size="14" text-anchor="middle">1. De pie</text>
+
+  <!-- flecha -->
+  <path d="M195 130 L225 130" stroke="#9aa1af" stroke-width="3" fill="none" />
+  <path d="M218 122 L228 130 L218 138" stroke="#9aa1af" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- figura 2: sentadilla abajo -->
+  <g stroke="#22d3ee" stroke-width="4" stroke-linecap="round" fill="none">
+    <circle cx="300" cy="80" r="13" fill="#22d3ee" stroke="none" />
+    <line x1="300" y1="93" x2="288" y2="140" />
+    <line x1="296" y1="105" x2="330" y2="95" />
+    <line x1="296" y1="105" x2="325" y2="120" />
+    <line x1="288" y1="140" x2="258" y2="140" />
+    <line x1="258" y1="140" x2="270" y2="185" />
+    <line x1="288" y1="140" x2="320" y2="150" />
+    <line x1="320" y1="150" x2="315" y2="185" />
+  </g>
+  <text x="300" y="210" fill="#9aa1af" font-family="sans-serif" font-size="14" text-anchor="middle">2. Abajo (muslos paralelos)</text>
+</svg>

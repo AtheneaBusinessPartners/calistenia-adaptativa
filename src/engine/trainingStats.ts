@@ -21,9 +21,12 @@ export interface MonthlyStats {
 export interface CalendarDay {
   date: string; // YYYY-MM-DD
   day: number;
+  weekday: number; // 0=domingo..6=sábado, mismo criterio que UserProfile.trainingDays
   inMonth: boolean;
   isToday: boolean;
+  isPast: boolean; // estrictamente antes de hoy
   trained: boolean;
+  planned: boolean; // el usuario suele entrenar ese día de la semana (UserProfile.trainingDays)
 }
 
 function toDateOnly(d: Date): string {
@@ -75,8 +78,15 @@ export function computeMonthlyStats(sessionDates: string[], today: Date = new Da
  * adyacentes marcados como `inMonth: false` — así el calendario siempre se
  * puede pintar como una tabla de 7 columnas sin huecos.
  */
-export function buildCalendarMonth(sessionDates: string[], year: number, month: number, today: Date = new Date()): CalendarDay[] {
+export function buildCalendarMonth(
+  sessionDates: string[],
+  trainingDays: number[],
+  year: number,
+  month: number,
+  today: Date = new Date(),
+): CalendarDay[] {
   const trained = new Set(sessionDates);
+  const planned = new Set(trainingDays);
   const todayStr = toDateOnly(today);
   const gridStart = startOfWeekMonday(new Date(Date.UTC(year, month, 1)));
 
@@ -87,9 +97,12 @@ export function buildCalendarMonth(sessionDates: string[], year: number, month: 
     days.push({
       date: dateStr,
       day: cursor.getUTCDate(),
+      weekday: cursor.getUTCDay(),
       inMonth: cursor.getUTCMonth() === month,
       isToday: dateStr === todayStr,
+      isPast: dateStr < todayStr,
       trained: trained.has(dateStr),
+      planned: planned.has(cursor.getUTCDay()),
     });
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }

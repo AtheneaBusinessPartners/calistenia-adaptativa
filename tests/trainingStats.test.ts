@@ -50,7 +50,7 @@ describe("computeMonthlyStats", () => {
 
 describe("buildCalendarMonth", () => {
   it("cubre el mes completo en semanas de lunes a domingo, sin huecos", () => {
-    const days = buildCalendarMonth([], 2026, 8, TODAY); // septiembre 2026 (0-indexado)
+    const days = buildCalendarMonth([], [], 2026, 8, TODAY); // septiembre 2026 (0-indexado)
     expect(days.length % 7).toBe(0);
     expect(days[0]!.date <= "2026-09-01").toBe(true);
     const inMonthDays = days.filter((d) => d.inMonth);
@@ -58,11 +58,29 @@ describe("buildCalendarMonth", () => {
   });
 
   it("marca correctamente los días entrenados y el día de hoy", () => {
-    const days = buildCalendarMonth(["2026-09-16"], 2026, 8, TODAY);
+    const days = buildCalendarMonth(["2026-09-16"], [], 2026, 8, TODAY);
     const today = days.find((d) => d.date === "2026-09-16")!;
     expect(today.trained).toBe(true);
     expect(today.isToday).toBe(true);
     const untrained = days.find((d) => d.date === "2026-09-01")!;
     expect(untrained.trained).toBe(false);
+  });
+
+  it("marca como planificado un día futuro cuyo día de la semana toca entrenar", () => {
+    // 2026-09-16 es miércoles; 2026-09-18 (viernes) cae dentro de 2 días.
+    const days = buildCalendarMonth([], [1, 3, 5], 2026, 8, TODAY); // L, X, V
+    const inTwoDays = days.find((d) => d.date === "2026-09-18")!;
+    expect(inTwoDays.planned).toBe(true);
+    expect(inTwoDays.trained).toBe(false);
+    expect(inTwoDays.isPast).toBe(false);
+    const notPlanned = days.find((d) => d.date === "2026-09-19")!; // sábado
+    expect(notPlanned.planned).toBe(false);
+  });
+
+  it("un día ya pasado se marca isPast, uno futuro no", () => {
+    const days = buildCalendarMonth([], [], 2026, 8, TODAY);
+    expect(days.find((d) => d.date === "2026-09-10")!.isPast).toBe(true);
+    expect(days.find((d) => d.date === "2026-09-16")!.isPast).toBe(false);
+    expect(days.find((d) => d.date === "2026-09-20")!.isPast).toBe(false);
   });
 });

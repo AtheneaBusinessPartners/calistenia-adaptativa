@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server.js";
 import { getProfile, getSessionDates } from "../../lib/repository.js";
 import { buildCalendarMonth, computeMonthlyStats, computeWeeklyStats } from "../../engine/trainingStats.js";
+import { CalendarGrid } from "../../components/CalendarGrid.js";
+import { PrintButton } from "../../components/PrintButton.js";
 
-const WEEKDAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
 const MONTH_LABELS = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
@@ -23,13 +24,22 @@ export default async function HistoryPage() {
 
   const weekly = computeWeeklyStats(sessionDates, profile.daysPerWeek, today);
   const monthly = computeMonthlyStats(sessionDates, today);
-  const calendarDays = buildCalendarMonth(sessionDates, today.getUTCFullYear(), today.getUTCMonth(), today);
+  const calendarDays = buildCalendarMonth(
+    sessionDates,
+    profile.trainingDays ?? [],
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today,
+  );
 
   return (
     <main className="mx-auto max-w-lg px-4 py-8">
-      <Link href="/dashboard" className="mb-4 inline-block text-sm text-[var(--muted)]">
-        ← Volver
-      </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <Link href="/dashboard" className="print:hidden text-sm text-[var(--muted)]">
+          ← Volver
+        </Link>
+        <PrintButton />
+      </div>
       <h1 className="mb-6 text-xl font-semibold">Tu historial</h1>
 
       <div className="mb-6 grid grid-cols-2 gap-3">
@@ -49,28 +59,14 @@ export default async function HistoryPage() {
         <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">
           {MONTH_LABELS[today.getUTCMonth()]} {today.getUTCFullYear()}
         </h2>
-        <div className="grid grid-cols-7 gap-1.5">
-          {WEEKDAY_LABELS.map((w) => (
-            <div key={w} className="text-center text-xs text-[var(--muted)]">
-              {w}
-            </div>
-          ))}
-          {calendarDays.map((d) => (
-            <div
-              key={d.date}
-              className={`flex aspect-square items-center justify-center rounded-lg text-xs ${
-                !d.inMonth
-                  ? "text-[var(--border)]"
-                  : d.trained
-                    ? "bg-[var(--accent)] font-medium text-black"
-                    : d.isToday
-                      ? "border border-[var(--accent)] text-[var(--foreground)]"
-                      : "text-[var(--muted)]"
-              }`}
-            >
-              {d.day}
-            </div>
-          ))}
+        <CalendarGrid days={calendarDays} />
+        <div className="mt-3 flex flex-wrap gap-3 text-xs text-[var(--muted)]">
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent)]" /> Entrenado
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full border border-[var(--accent-dim)]" /> Planificado
+          </span>
         </div>
       </section>
     </main>

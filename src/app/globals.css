@@ -45,3 +45,23 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Exportar a PDF (petición del usuario) usa window.print() del navegador
+   — "Guardar como PDF" en el diálogo de impresión — en vez de una
+   librería nueva. El tema oscuro no tiene sentido en un informe impreso,
+   así que aquí se sobreescriben las mismas variables con una paleta clara
+   solo para @media print; los elementos con la clase print:hidden de
+   Tailwind (botones, enlaces de navegación) desaparecen del PDF. */
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #111111;
+    --card: #f4f4f5;
+    --border: #d4d4d8;
+    --muted: #52525b;
+  }
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

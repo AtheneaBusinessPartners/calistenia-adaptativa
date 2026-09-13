@@ -1,6 +1,7 @@
 import type { Exercise, MovementPatternId } from "./types.js";
 import { rankExercises, type SelectorContext } from "./exerciseSelector.js";
 import { assembleWorkoutSketch } from "./workoutSketch.js";
+import { muscleName } from "../data/muscles.js";
 
 const FATIGUE_MENTION_THRESHOLD = 40; // a partir de aquí se nombra el músculo en la explicación
 
@@ -49,7 +50,7 @@ export function explainFatigueImpact(
   }
 
   const fatiguedMuscles = mainWithout.exercise.primaryMuscles.filter((m) => (fatigueByMuscle[m] ?? 0) >= FATIGUE_MENTION_THRESHOLD);
-  const muscleNames = (fatiguedMuscles.length > 0 ? fatiguedMuscles : mainWithout.exercise.primaryMuscles).join(" y ");
+  const muscleNames = (fatiguedMuscles.length > 0 ? fatiguedMuscles : mainWithout.exercise.primaryMuscles).map(muscleName).join(" y ");
   const patternLabel = PATTERN_LABEL[mainWithout.exercise.movementPattern];
 
   return {

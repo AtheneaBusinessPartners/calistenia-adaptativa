@@ -54,6 +54,6 @@ describe("explainFatigueImpact (§16 del brief)", () => {
 
     expect(result.changed).toBe(true);
     expect(result.message).toContain("tirón");
-    expect(result.message).toMatch(/lats|biceps/);
+    expect(result.message).toMatch(/Dorsal ancho|Bíceps/);
   });
 });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EXERCISES_BY_ID } from "../../../data/exercises.js";
+import { muscleName } from "../../../data/muscles.js";
 
 export default async function ExercisePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,6 +13,10 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
       <Link href="/dashboard" className="mb-4 inline-block text-sm text-[var(--muted)]">
         ← Volver
       </Link>
+      {exercise.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={exercise.imageUrl} alt={exercise.name} className="mb-4 w-full rounded-xl border border-[var(--border)]" />
+      )}
       <h1 className="mb-1 text-xl font-semibold">{exercise.name}</h1>
       <p className="mb-4 text-sm text-[var(--muted)]">
         {exercise.category} · {exercise.movementPattern} · dificultad {exercise.difficulty}/10 · descansa{" "}
@@ -46,11 +51,11 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
 
       <Section title="Músculos">
         <p className="text-sm">
-          <span className="text-[var(--muted)]">Principales:</span> {exercise.primaryMuscles.join(", ")}
+          <span className="text-[var(--muted)]">Principales:</span> {exercise.primaryMuscles.map(muscleName).join(", ")}
         </p>
         {exercise.secondaryMuscles && (
           <p className="text-sm">
-            <span className="text-[var(--muted)]">Secundarios:</span> {exercise.secondaryMuscles.join(", ")}
+            <span className="text-[var(--muted)]">Secundarios:</span> {exercise.secondaryMuscles.map(muscleName).join(", ")}
           </p>
         )}
       </Section>

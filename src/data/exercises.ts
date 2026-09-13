@@ -813,6 +813,11 @@ export const EXERCISES: Exercise[] = [
     restSeconds: 45,
     technicalCues: ["Rodillas siguen la dirección de los pies", "Profundidad completa sin perder la lumbar neutra"],
     commonErrors: ["Talones despegados del suelo"],
+    // Prueba de concepto de la biblioteca de ejercicios (§ petición del
+    // usuario): de momento es el único ejercicio con imagen real; el resto
+    // del catálogo queda con `imageUrl` sin definir a propósito hasta que
+    // se generen o suban las demás.
+    imageUrl: "/exercises/bodyweight_squat.svg",
   },
   {
     id: "split_squat",
