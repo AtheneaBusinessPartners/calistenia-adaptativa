@@ -15,7 +15,10 @@ export const WEEKLY_SPLIT_TEMPLATES: Record<number, DayArchetype[]> = {
   6: ["priority_focus", "complementary", "priority_focus", "complementary", "priority_focus", "complementary"],
 };
 
+const DEFAULT_DAYS_PER_WEEK = 4;
+
 export function getWeeklySplitTemplate(daysPerWeek: number): DayArchetype[] {
-  const clamped = Math.min(6, Math.max(2, Math.round(daysPerWeek)));
+  const safeInput = Number.isFinite(daysPerWeek) ? daysPerWeek : DEFAULT_DAYS_PER_WEEK;
+  const clamped = Math.min(6, Math.max(2, Math.round(safeInput)));
   return WEEKLY_SPLIT_TEMPLATES[clamped]!;
 }

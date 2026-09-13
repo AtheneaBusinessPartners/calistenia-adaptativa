@@ -62,6 +62,12 @@ describe("generateWeeklyPlan (§20)", () => {
     const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 10);
     expect(plan.days).toHaveLength(6);
   });
+
+  it("un daysPerWeek inválido (NaN) no rompe el generador: cae a un valor por defecto", () => {
+    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, NaN);
+    expect(plan.days.length).toBeGreaterThanOrEqual(2);
+    expect(plan.days.length).toBeLessThanOrEqual(6);
+  });
 });
 
 describe("integración historial <-> plan semanal (§13 dentro de §17-20)", () => {

@@ -94,16 +94,18 @@ export function generateWeeklyPlan(
       archetype === "complementary" ? avoidPatterns : undefined,
     );
 
-    // El patrón a evitar el día siguiente se decide con el ejercicio ANTES
-    // de aplicar el historial: es una regla de espaciado de estímulo por
-    // patrón de movimiento, no algo que deba cambiar porque el usuario
-    // avanzó de línea en ese ejercicio concreto.
-    const mainBlock = blocks.find((b) => b.block === "Fuerza principal");
-    avoidPatterns = mainBlock ? new Set([mainBlock.exercise.movementPattern]) : undefined;
-
     if (historyByExercise) {
       blocks = applyTrainingHistory(blocks, historyByExercise, exercisesById);
     }
+
+    // El patrón a evitar el día siguiente se decide DESPUÉS de aplicar el
+    // historial: si avanzar/regresar de línea cambió el ejercicio (y la
+    // mayoría de progressions/regressions se quedan en el mismo
+    // movementPattern, pero no todas — p.ej. handstand libre -> HSPU libre
+    // cruza de balance_hold a vertical_push), lo que importa para espaciar
+    // el estímulo del día siguiente es el patrón REALMENTE entrenado hoy.
+    const mainBlock = blocks.find((b) => b.block === "Fuerza principal");
+    avoidPatterns = mainBlock ? new Set([mainBlock.exercise.movementPattern]) : undefined;
 
     days.push({
       dayIndex,
