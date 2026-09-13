@@ -79,7 +79,16 @@ export function assembleWorkoutSketch(
   let budgetSeconds = Math.max(0, Math.round((sessionDurationMinutes - warmupMinutes) * 60));
 
   const blocks: WorkoutBlockItem[] = [];
-  const isMainCategory = (e: Exercise) => e.category === "pull" || e.category === "push" || e.category === "legs";
+  // "skill" cuenta como categoría "principal" aquí a propósito: un ejercicio
+  // como tuck_front_lever_hold o l_sit_tuck es un primer escalón de su
+  // cadena, no el movimiento final — si el ranking lo pone por delante de
+  // ejercicios pull/push/legs (porque de verdad es lo más relevante y al
+  // nivel adecuado ahora mismo), debe poder ocupar "Fuerza principal" igual
+  // que cualquier otro. El gate estricto de más abajo (progressionReadiness
+  // >= 0.7) es solo para el ejercicio FINAL de la skill objetivo (p.ej.
+  // muscle_up, front_lever_hold) — eso sigue reservado a "Skill / técnica".
+  // "core" se queda fuera: tiene su propio bloque dedicado más adelante.
+  const isMainCategory = (e: Exercise) => e.category === "pull" || e.category === "push" || e.category === "legs" || e.category === "skill";
 
   const tryAddBlock = (label: string, score: ExerciseScoreBreakdown | undefined): boolean => {
     if (!score) return false;

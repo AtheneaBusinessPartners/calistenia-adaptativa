@@ -22,7 +22,8 @@ src/
               capacidades, equipamiento, skills, cadenas de progresión,
               modos de entrenamiento, plantillas de split semanal
   scenarios/  casos de validación con un usuario ficticio (§40 del brief)
-tests/        vitest sobre el motor
+tests/        vitest sobre el motor (incluye integration.test.ts: FASE 1 + FASE 2
+              con un objetivo distinto a muscle-up, para probar que generaliza)
 docs/         arquitectura y decisiones de diseño
 ```
 
@@ -41,5 +42,8 @@ npm run typecheck
 
 FASE 1 (cerebro) y FASE 2 (workout engine: split semanal, progresión de
 volumen sesión a sesión, reorganización por disponibilidad) completas y
-validadas con un caso real end-to-end. Pendiente: FASE 3 (motor de fatiga),
-FASE 4 (app/UI), FASE 5 (nutrición), FASE 6 (coach IA).
+validadas end-to-end con dos usuarios ficticios de objetivos distintos
+(muscle-up y front lever) más un caso límite de equipamiento insuficiente,
+para comprobar que la lógica generaliza y no está sesgada a un solo caso.
+59/59 tests. Pendiente: FASE 3 (motor de fatiga), FASE 4 (app/UI), FASE 5
+(nutrición), FASE 6 (coach IA).

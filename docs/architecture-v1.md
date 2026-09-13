@@ -156,6 +156,44 @@ hoy devuelven un valor neutral documentado — se implementan en FASE 3 (motor
 de fatiga) y no necesitan cambiar la forma de la fórmula, solo rellenar la
 función.
 
+**Amortiguación por preparación (encontrado al probar la integración con
+FASE 2 contra un objetivo distinto a muscle-up, front lever):**
+`skillRelevance` y `capabilityFit` miden cuánto ayudaría un ejercicio SI se
+pudiera hacer — y como en los datos el ejercicio más difícil de cualquier
+cadena siempre tiene los pesos de capacidad más altos (es lo que significa
+"más difícil"), el movimiento FINAL de una skill (p.ej. `front_lever_hold`,
+`muscle_up`) ganaba casi siempre esos dos factores por goleada, sin importar
+si el usuario estaba a un paso o a diez de poder intentarlo. Con muscle-up
+esto quedaba oculto porque tres pasos intermedios muy obvios (chest-to-bar,
+dominada explosiva, dominada) igualmente lo superaban; con front lever
+(donde el catálogo tiene menos pasos intermedios de ese calibre) el
+movimiento final llegaba a rankear con score similar a un ejercicio
+apropiado — y peor aún, el paso realmente correcto en ese momento
+(`tuck_front_lever_hold`, la limitación #1 real) quedaba fuera del plan por
+completo.
+
+La corrección: la contribución de `skillRelevance` y `capabilityFit` a la
+puntuación se multiplica por `max(0.15, levelCompatibility)` — un
+amortiguador, no un gate (nunca llega a 0, así que un ejercicio muy avanzado
+sigue pudiendo ganar si de verdad no hay ninguna alternativa razonable).
+`levelCompatibility` ya mide "qué tan cerca está este ejercicio del punto
+donde está el usuario ahora en esta línea de trabajo", así que reutilizarlo
+aquí no añade un concepto nuevo, solo hace que dos factores que antes eran
+puramente aditivos e independientes interactúen como debería: relevancia
+en abstracto × qué tan alcanzable es AHORA. Validado en
+`tests/exerciseSelector.test.ts` (muscle-up por debajo de sus tres pasos
+intermedios; front_lever_hold por debajo de tuck_front_lever_hold) y en
+`tests/integration.test.ts` (tuck_front_lever_hold SÍ aparece en el plan
+semanal generado; front_lever_hold NO).
+
+Esta corrección también resolvió, sin cambios adicionales, la restricción de
+categoría de `workoutSketch.ts` que originalmente solo dejaba entrar
+ejercicios `pull`/`push`/`legs` en "Fuerza principal/secundaria/Accesorio":
+ampliarla a incluir también `category === "skill"` (necesario para que
+`tuck_front_lever_hold` pudiera ocupar un bloque) habría sido peligroso sin
+esta amortiguación — sin ella, `front_lever_hold` también habría colado por
+la puerta ampliada.
+
 **`goalRelevance` con varios objetivos (§31):** si el usuario marcó varios
 objetivos, se ordenan `[primaryGoal, ...resto de goals en su orden]` y se
 pesan por rango con decaimiento `1/(rango+1)` (1, 1/2, 1/3...) antes de

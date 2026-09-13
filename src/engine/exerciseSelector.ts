@@ -105,6 +105,12 @@ function progressionReadiness(exercise: Exercise, user: UserContext): number {
   return regressionsMastered ? 1 : 0.3;
 }
 
+// Piso de la amortiguación por preparación (ver más abajo): nunca 0, porque
+// esto no es un gate — si de verdad no hay ninguna alternativa razonable
+// (p.ej. objetivo recién empezado, cero ejercicios "listos" en su cadena),
+// el ejercicio más avanzado sigue siendo mejor que nada.
+const READINESS_DAMPING_FLOOR = 0.15;
+
 export function scoreExercise(exercise: Exercise, ctx: SelectorContext): ExerciseScoreBreakdown {
   if (!equipmentGate(exercise, ctx.user.profile.equipment)) {
     return zeroScore(exercise.id, "Falta material requerido");
@@ -120,9 +126,21 @@ export function scoreExercise(exercise: Exercise, ctx: SelectorContext): Exercis
   const pr = progressionReadiness(exercise, ctx.user);
   const pref = 0.5; // stub: preferencia declarada/aprendida, no implementada en FASE1
 
+  // `skillRelevance` y `capabilityFit` miden "cuánto ayudaría este ejercicio
+  // SI se pudiera hacer" — y como los ejercicios más difíciles de una cadena
+  // siempre desarrollan más capacidad por diseño de los datos, el más
+  // avanzado de cualquier cadena ganaría siempre por relevancia en
+  // abstracto, sin importar si el usuario está a años de poder intentarlo.
+  // Por eso esa parte de la puntuación se amortigua por lo preparado que
+  // está el usuario para ESE ejercicio en concreto (`levelCompatibility`):
+  // un ejercicio muy relevante pero totalmente fuera de alcance no debe
+  // competir con uno igual de relevante y sí alcanzable ahora mismo. No es
+  // un gate (nunca llega a 0): sigue pudiendo ganar si no hay nada mejor.
+  const readinessDamping = Math.max(READINESS_DAMPING_FLOOR, lc);
+  const relevance = (SCORING_WEIGHTS.skillRelevance * sr + SCORING_WEIGHTS.capabilityFit * cf) * readinessDamping;
+
   const total =
-    SCORING_WEIGHTS.skillRelevance * sr +
-    SCORING_WEIGHTS.capabilityFit * cf +
+    relevance +
     SCORING_WEIGHTS.levelCompatibility * lc +
     SCORING_WEIGHTS.goalRelevance * gr +
     SCORING_WEIGHTS.progressionReadiness * pr +

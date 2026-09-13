@@ -91,3 +91,56 @@ describe("goalRelevance multi-objetivo (§31)", () => {
     expect(strengthPrimary.goalRelevance).toBeGreaterThan(strengthSecondary.goalRelevance);
   });
 });
+
+describe("amortiguación por preparación (§30/§33): el movimiento final de una skill no debe rankear por delante de un paso intermedio apropiado solo por ser más 'relevante' en abstracto", () => {
+  it("muscle-up puntúa por debajo de chest-to-bar, dominada explosiva y dominada cuando el usuario está lejos de esos requisitos", () => {
+    // Mismo escenario que src/scenarios/muscleup-user.ts: 0 chest-to-bar, 0
+    // dominada explosiva. Antes de este arreglo, muscle_up rankeaba #4
+    // (por delante de casi todo salvo los 3 pasos intermedios más obvios)
+    // solo porque desarrolla mucha capacidad "pull"/"explosiveness" en
+    // abstracto — sin que importara que el usuario no puede ni intentarlo.
+    const fullAssessment: AssessmentEntry[] = [
+      { exerciseId: "pull_up", reps: 7 },
+      { exerciseId: "straight_bar_dip", reps: 10 },
+      { exerciseId: "chest_to_bar_pull_up", reps: 0 },
+    ];
+    const cp = computeCapabilityProfile(fullAssessment, EXERCISES_BY_ID);
+    const g = evaluateSkillGate(targetSkill, fullAssessment, cp);
+    const ctx = { user: { profile: baseProfile, assessment: fullAssessment, capabilityProfile: cp }, targetSkill, limitations: g.limitations };
+
+    const muscleUpScore = scoreExercise(EXERCISES_BY_ID["muscle_up"]!, ctx).total;
+    const chestToBarScore = scoreExercise(EXERCISES_BY_ID["chest_to_bar_pull_up"]!, ctx).total;
+    const explosivePullUpScore = scoreExercise(EXERCISES_BY_ID["explosive_pull_up"]!, ctx).total;
+    const pullUpScore = scoreExercise(EXERCISES_BY_ID["pull_up"]!, ctx).total;
+
+    expect(muscleUpScore).toBeLessThan(chestToBarScore);
+    expect(muscleUpScore).toBeLessThan(explosivePullUpScore);
+    expect(muscleUpScore).toBeLessThan(pullUpScore);
+  });
+
+  it("front_lever_hold (el movimiento completo) puntúa por debajo de tuck_front_lever_hold cuando el usuario apenas ha empezado esa cadena", () => {
+    const frontLeverSkill = SKILLS_BY_ID["front_lever"]!;
+    const flAssessment: AssessmentEntry[] = [
+      { exerciseId: "pull_up", reps: 10 },
+      { exerciseId: "australian_row", reps: 5 },
+      { exerciseId: "tuck_front_lever_hold", seconds: 3 },
+    ];
+    const flCapabilityProfile = computeCapabilityProfile(flAssessment, EXERCISES_BY_ID);
+    const flGate = evaluateSkillGate(frontLeverSkill, flAssessment, flCapabilityProfile);
+    const flProfile: UserProfile = {
+      ...baseProfile,
+      primarySkillTarget: "front_lever",
+      equipment: ["pullup_bar", "parallettes", "rings", "bands"],
+    };
+    const ctx = {
+      user: { profile: flProfile, assessment: flAssessment, capabilityProfile: flCapabilityProfile },
+      targetSkill: frontLeverSkill,
+      limitations: flGate.limitations,
+    };
+
+    const tuckScore = scoreExercise(EXERCISES_BY_ID["tuck_front_lever_hold"]!, ctx).total;
+    const fullScore = scoreExercise(EXERCISES_BY_ID["front_lever_hold"]!, ctx).total;
+
+    expect(tuckScore).toBeGreaterThan(fullScore);
+  });
+});
