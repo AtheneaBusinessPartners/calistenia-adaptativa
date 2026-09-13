@@ -3,10 +3,12 @@ import { computeCapabilityProfile } from "../engine/capabilityProfile.js";
 import { evaluateSkillGate } from "../engine/skillGate.js";
 import type { SelectorContext } from "../engine/exerciseSelector.js";
 import { generateWeeklyPlan, type DayPlan } from "../engine/weeklyPlan.js";
+import { applyDeloadWeek, shouldRecommendDeloadWeek, type DeloadWeekSignal } from "../engine/deloadWeek.js";
+import type { SessionLogEntry } from "../engine/progression.js";
 import { EXERCISES, EXERCISES_BY_ID } from "../data/exercises.js";
 import { SKILLS_BY_ID } from "../data/skills.js";
-import type { CapabilityProfile, CheckIn, SkillGateResult, UserProfile } from "../engine/types.js";
-import { getHistoryByExercise, getLatestAssessment, getTodayCheckIn, getTrainingLog } from "./repository.js";
+import type { CapabilityProfile, CheckIn, Exercise, SkillGateResult, UserProfile } from "../engine/types.js";
+import { getHistoryByExercise, getLatestAssessment, getRecentCheckIns, getTodayCheckIn, getTrainingLog } from "./repository.js";
 
 export interface TodayContext {
   profile: UserProfile;
@@ -15,6 +17,7 @@ export interface TodayContext {
   today: DayPlan;
   weekPreview: DayPlan[];
   todayCheckIn: CheckIn | null;
+  deloadWeek: DeloadWeekSignal;
 }
 
 /**
@@ -28,11 +31,12 @@ export interface TodayContext {
  * variedad día a día sin la complejidad de rastrear el ciclo.
  */
 export async function computeTodayContext(supabase: SupabaseClient, userId: string, profile: UserProfile): Promise<TodayContext> {
-  const [assessment, trainingLog, historyByExercise, todayCheckIn] = await Promise.all([
+  const [assessment, trainingLog, historyByExercise, todayCheckIn, recentCheckIns] = await Promise.all([
     getLatestAssessment(supabase, userId),
     getTrainingLog(supabase, userId),
     getHistoryByExercise(supabase, userId),
     getTodayCheckIn(supabase, userId),
+    getRecentCheckIns(supabase, userId),
   ]);
 
   const capabilityProfile = computeCapabilityProfile(assessment, EXERCISES_BY_ID);
@@ -45,11 +49,30 @@ export async function computeTodayContext(supabase: SupabaseClient, userId: stri
     limitations: gate?.limitations ?? [],
   };
 
-  const plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek, {
+  let plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek, {
     trainingLog,
     historyByExercise,
     todayCheckIn: todayCheckIn ?? undefined,
   });
 
-  return { profile, capabilityProfile, gate, today: plan.days[0]!, weekPreview: plan.days, todayCheckIn };
+  // `shouldRecommendDeloadWeek` (§24, FASE 3) tenía tests propios pero nunca
+  // se llamaba desde la app real — la señal agregada de toda la semana
+  // (distinta del DELOAD_CANDIDATE por ejercicio que ya aplica
+  // `applyTrainingHistory` vía `sessionPlanner`) nunca llegaba a
+  // recomendarse ni a reducir el volumen del plan.
+  const exercisesInProgress = Object.entries(historyByExercise)
+    .map(([exerciseId, history]) => ({ exercise: EXERCISES_BY_ID[exerciseId], history }))
+    .filter((e): e is { exercise: Exercise; history: SessionLogEntry[] } => Boolean(e.exercise));
+
+  const deloadWeek = shouldRecommendDeloadWeek({
+    trainingLog,
+    exercisesById: EXERCISES_BY_ID,
+    exercisesInProgress,
+    recentCheckIns,
+  });
+  if (deloadWeek.recommend) {
+    plan = applyDeloadWeek(plan);
+  }
+
+  return { profile, capabilityProfile, gate, today: plan.days[0]!, weekPreview: plan.days, todayCheckIn, deloadWeek };
 }

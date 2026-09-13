@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitCheckIn } from "../lib/actions/session.js";
 import { checkInSafetyMessage } from "../engine/checkIn.js";
+import { MUSCLES } from "../data/muscles.js";
 import type { CheckIn, FeelingLevel, LevelRating, PainSeverity, SleepQuality } from "../engine/types.js";
 
 const FEELING_OPTIONS: { value: FeelingLevel; label: string }[] = [
@@ -28,8 +29,9 @@ export function CheckInForm() {
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("good");
   const [stress, setStress] = useState<LevelRating>("low");
   const [motivation, setMotivation] = useState<LevelRating>("medium");
+  const [fatigueZones, setFatigueZones] = useState<string[]>([]);
   const [hasPain, setHasPain] = useState(false);
-  const [painDescription, setPainDescription] = useState("");
+  const [painZones, setPainZones] = useState<string[]>([]);
   const [painSeverity, setPainSeverity] = useState<PainSeverity>("mild");
   const [pending, startTransition] = useTransition();
 
@@ -38,10 +40,15 @@ export function CheckInForm() {
     sleepQuality,
     stress,
     motivation,
-    painZones: hasPain && painDescription ? [painDescription] : undefined,
+    fatigueZones: fatigueZones.length > 0 ? fatigueZones : undefined,
+    painZones: hasPain && painZones.length > 0 ? painZones : undefined,
     painSeverity: hasPain ? painSeverity : undefined,
   };
   const safety = checkInSafetyMessage(checkIn);
+
+  function toggleZone(list: string[], setList: (v: string[]) => void, muscleId: string) {
+    setList(list.includes(muscleId) ? list.filter((m) => m !== muscleId) : [...list, muscleId]);
+  }
 
   function handleSubmit() {
     startTransition(async () => {
@@ -89,19 +96,39 @@ export function CheckInForm() {
         </div>
       </div>
 
+      <div className="mb-4">
+        <p className="mb-2 text-sm text-[var(--muted)]">¿Hay alguna zona especialmente fatigada? (opcional)</p>
+        <div className="flex flex-wrap gap-2">
+          {MUSCLES.map((m) => (
+            <Chip
+              key={m.id}
+              label={m.name}
+              active={fatigueZones.includes(m.id)}
+              onClick={() => toggleZone(fatigueZones, setFatigueZones, m.id)}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="mb-6">
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={hasPain} onChange={(e) => setHasPain(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={hasPain}
+            onChange={(e) => {
+              setHasPain(e.target.checked);
+              if (!e.target.checked) setPainZones([]);
+            }}
+          />
           Tengo dolor (no solo fatiga) en alguna zona
         </label>
         {hasPain && (
-          <div className="mt-2 flex flex-col gap-2">
-            <input
-              placeholder="¿Dónde? (p.ej. hombro derecho)"
-              value={painDescription}
-              onChange={(e) => setPainDescription(e.target.value)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-            />
+          <div className="mt-2 flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              {MUSCLES.map((m) => (
+                <Chip key={m.id} label={m.name} active={painZones.includes(m.id)} onClick={() => toggleZone(painZones, setPainZones, m.id)} />
+              ))}
+            </div>
             <div className="flex gap-2">
               {(["mild", "moderate", "severe"] as PainSeverity[]).map((s) => (
                 <Chip

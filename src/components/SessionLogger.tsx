@@ -31,6 +31,18 @@ function defaultAchieved(block: WorkoutBlockItem): string {
   return fallback !== null ? String(Math.round(fallback)) : "";
 }
 
+// `Number(value) || undefined` trataba RIR=0 ("al fallo", la señal de
+// mayor esfuerzo) como si no se hubiera indicado RIR en absoluto, porque 0
+// es falsy en JS. `decideProgression` usa `h.rir ?? 2` para detectar
+// esfuerzo alto (`rir <= 1`): con ese bug, un set a fallo real se leía como
+// RIR=2 (esfuerzo moderado) y podía bloquear en silencio un avance de
+// progresión que debería haberse disparado.
+function parseRir(value: string): number | undefined {
+  if (value.trim() === "") return undefined;
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : Math.max(0, Math.min(5, n));
+}
+
 export function SessionLogger({ blocks, archetype }: Props) {
   const [rows, setRows] = useState<Record<string, RowState>>(() =>
     Object.fromEntries(blocks.map((b) => [b.exercise.id, { achieved: defaultAchieved(b), rir: "2", techniqueOk: true }])),
@@ -45,13 +57,16 @@ export function SessionLogger({ blocks, archetype }: Props) {
     const loggedSets: LoggedSet[] = blocks.map((b) => {
       const row = rows[b.exercise.id]!;
       const isTime = b.exercise.masteryCriteria.type === "time";
-      const achieved = Number(row.achieved) || 0;
+      // `min={0}` en el input no basta: este botón no dispara la validación
+      // nativa de un <form>, así que un valor negativo tecleado a mano
+      // pasaría tal cual y corrompería el historial de progresión.
+      const achieved = Math.max(0, Number(row.achieved) || 0);
       return {
         exerciseId: b.exercise.id,
         sets: b.sets,
         reps: isTime ? undefined : achieved,
         seconds: isTime ? achieved : undefined,
-        rir: Number(row.rir) || undefined,
+        rir: parseRir(row.rir),
         techniqueOk: row.techniqueOk,
       };
     });
@@ -80,6 +95,7 @@ export function SessionLogger({ blocks, archetype }: Props) {
                   {isTime ? "Segundos conseguidos" : "Reps conseguidas"}
                   <input
                     type="number"
+                    min={0}
                     value={row.achieved}
                     onChange={(e) => updateRow(b.exercise.id, { achieved: e.target.value })}
                     className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 outline-none focus:border-[var(--accent)]"

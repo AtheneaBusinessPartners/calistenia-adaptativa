@@ -82,8 +82,21 @@ export function OnboardingWizard() {
     setStepIndex((i) => Math.max(i - 1, 0));
   }
 
+  // Desmarcar el último objetivo (o el que sea `primaryGoal`) dejaba
+  // `goals: []` y un `primaryGoal` obsoleto que ya no aparecía en la lista
+  // de opciones: el desplegable "Objetivo principal" se quedaba vacío y sin
+  // ninguna opción seleccionable, y el perfil se guardaba con un objetivo
+  // principal que el usuario ya no había marcado. Se exige al menos un
+  // objetivo siempre, y si se desmarca el que era principal, el primero que
+  // quede pasa a serlo automáticamente.
   function toggleGoal(id: GoalId) {
-    setGoals((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
+    setGoals((prev) => {
+      const isChecked = prev.includes(id);
+      if (isChecked && prev.length === 1) return prev;
+      const next = isChecked ? prev.filter((g) => g !== id) : [...prev, id];
+      if (isChecked && id === primaryGoal) setPrimaryGoal(next[0]!);
+      return next;
+    });
   }
 
   function submitAssessmentAnswer(didIt: boolean) {
@@ -134,7 +147,13 @@ export function OnboardingWizard() {
 
       {step === "profile" && (
         <Section title="Sobre ti">
-          <NumberField label="Edad" value={profile.age} onChange={(v) => setProfile((p) => ({ ...p, age: v }))} />
+          <NumberField
+            label="Edad"
+            value={profile.age}
+            onChange={(v) => setProfile((p) => ({ ...p, age: v }))}
+            min={10}
+            max={100}
+          />
           <SelectField
             label="Sexo"
             value={profile.sex}
@@ -145,12 +164,26 @@ export function OnboardingWizard() {
             ]}
             onChange={(v) => setProfile((p) => ({ ...p, sex: v as UserProfile["sex"] }))}
           />
-          <NumberField label="Altura (cm)" value={profile.heightCm} onChange={(v) => setProfile((p) => ({ ...p, heightCm: v }))} />
-          <NumberField label="Peso (kg)" value={profile.weightKg} onChange={(v) => setProfile((p) => ({ ...p, weightKg: v }))} />
+          <NumberField
+            label="Altura (cm)"
+            value={profile.heightCm}
+            onChange={(v) => setProfile((p) => ({ ...p, heightCm: v }))}
+            min={100}
+            max={250}
+          />
+          <NumberField
+            label="Peso (kg)"
+            value={profile.weightKg}
+            onChange={(v) => setProfile((p) => ({ ...p, weightKg: v }))}
+            min={25}
+            max={250}
+          />
           <NumberField
             label="Años entrenando"
             value={profile.trainingExperienceYears}
             onChange={(v) => setProfile((p) => ({ ...p, trainingExperienceYears: v }))}
+            min={0}
+            max={80}
           />
           <SelectField
             label="Experiencia con calistenia"
@@ -167,6 +200,8 @@ export function OnboardingWizard() {
             label="Horas de sueño (media)"
             value={profile.sleepHoursAvg}
             onChange={(v) => setProfile((p) => ({ ...p, sleepHoursAvg: v }))}
+            min={0}
+            max={14}
           />
           <SelectField
             label="Nivel de actividad diaria"
@@ -216,16 +251,22 @@ export function OnboardingWizard() {
             label="Días por semana"
             value={availability.daysPerWeek}
             onChange={(v) => setAvailability((a) => ({ ...a, daysPerWeek: Math.min(6, Math.max(2, v)) }))}
+            min={2}
+            max={6}
           />
           <NumberField
             label="Duración habitual de la sesión (min)"
             value={availability.sessionDurationMinutes}
             onChange={(v) => setAvailability((a) => ({ ...a, sessionDurationMinutes: v }))}
+            min={10}
+            max={240}
           />
           <NumberField
             label="Duración mínima si tienes poco tiempo (min)"
             value={availability.minSessionDurationMinutes}
             onChange={(v) => setAvailability((a) => ({ ...a, minSessionDurationMinutes: v }))}
+            min={5}
+            max={240}
           />
         </Section>
       )}
@@ -335,13 +376,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function NumberField({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
   return (
     <label className="flex flex-col gap-1 text-sm">
       {label}
       <input
         type="number"
         value={value}
+        min={min}
+        max={max}
         onChange={(e) => onChange(Number(e.target.value))}
         className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 outline-none focus:border-[var(--accent)]"
       />

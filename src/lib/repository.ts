@@ -154,6 +154,23 @@ export async function countTrainingSessions(supabase: SupabaseClient, userId: st
   return count ?? 0;
 }
 
+/**
+ * Sin esto, revisitar /session tras haber entrenado hoy (botón atrás,
+ * pestaña vieja) vuelve a mostrar el logger y permite registrar una segunda
+ * sesión el mismo día — duplica la fatiga del día y ensucia el historial
+ * que usa `sessionPlanner.planNextSession` para decidir la progresión.
+ */
+export async function hasTrainingSessionToday(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { count, error } = await supabase
+    .from("training_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("performed_at", today);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 export async function getTodayCheckIn(supabase: SupabaseClient, userId: string): Promise<CheckIn | null> {
   const todayStart = startOfDay(new Date()).toISOString();
   const { data, error } = await supabase
@@ -176,6 +193,30 @@ export async function getTodayCheckIn(supabase: SupabaseClient, userId: string):
     painZones: data.pain_zones ?? [],
     painSeverity: data.pain_severity ?? undefined,
   };
+}
+
+/**
+ * `shouldRecommendDeloadWeek` (motor FASE 3) espera `recentCheckIns` con el
+ * más reciente AL FINAL, para poder mirar solo los últimos N con `.slice(-N)`.
+ */
+export async function getRecentCheckIns(supabase: SupabaseClient, userId: string, limit = 5): Promise<CheckIn[]> {
+  const { data, error } = await supabase
+    .from("check_ins")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  return (data ?? []).reverse().map((row) => ({
+    feeling: row.feeling,
+    sleepQuality: row.sleep_quality,
+    stress: row.stress,
+    motivation: row.motivation,
+    fatigueZones: row.fatigue_zones ?? [],
+    painZones: row.pain_zones ?? [],
+    painSeverity: row.pain_severity ?? undefined,
+  }));
 }
 
 export async function insertCheckIn(supabase: SupabaseClient, userId: string, checkIn: CheckIn): Promise<void> {

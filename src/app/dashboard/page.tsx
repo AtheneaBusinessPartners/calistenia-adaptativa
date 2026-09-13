@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server.js";
-import { getProfile } from "../../lib/repository.js";
+import { getProfile, hasTrainingSessionToday } from "../../lib/repository.js";
 import { computeTodayContext } from "../../lib/planForToday.js";
 import { CAPABILITIES } from "../../data/capabilities.js";
 import { signOut } from "../../lib/actions/auth.js";
@@ -14,7 +14,8 @@ export default async function DashboardPage() {
   const profile = await getProfile(supabase, userData.user.id);
   if (!profile) redirect("/onboarding");
 
-  const { capabilityProfile, gate, today, weekPreview } = await computeTodayContext(supabase, userData.user.id, profile);
+  const { capabilityProfile, gate, today, weekPreview, deloadWeek } = await computeTodayContext(supabase, userData.user.id, profile);
+  const alreadyTrainedToday = await hasTrainingSessionToday(supabase, userData.user.id);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -34,6 +35,20 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      {deloadWeek.recommend && (
+        <section className="mb-6 rounded-xl border border-[var(--danger)] bg-[var(--card)] p-4">
+          <h2 className="mb-2 text-sm font-medium text-[var(--danger)]">Semana de descarga recomendada</h2>
+          <p className="mb-2 text-sm text-[var(--muted)]">
+            Hemos reducido el volumen de toda la semana para dejarte recuperar de verdad.
+          </p>
+          <ul className="flex flex-col gap-1 text-sm text-[var(--muted)]">
+            {deloadWeek.reasons.map((reason) => (
+              <li key={reason}>• {reason}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {gate && (
         <section className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
           <h2 className="mb-2 text-sm font-medium text-[var(--muted)]">
@@ -48,22 +63,31 @@ export default async function DashboardPage() {
       )}
 
       <section className="mb-6 rounded-xl border border-[var(--accent-dim)] bg-[var(--card)] p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-medium">{today.focusLabel}</h2>
-          <Link href="/session" className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black">
-            Empezar sesión
-          </Link>
+          {alreadyTrainedToday ? (
+            <span className="whitespace-nowrap rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)]">
+              Sesión de hoy ✓
+            </span>
+          ) : (
+            <Link
+              href="/session"
+              className="whitespace-nowrap rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black"
+            >
+              Empezar sesión
+            </Link>
+          )}
         </div>
         {today.fatigueExplanation.changed && (
           <p className="mb-3 text-sm text-[var(--muted)]">{today.fatigueExplanation.message}</p>
         )}
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul className="flex flex-col gap-1.5 text-sm">
           {today.blocks.map((b) => (
-            <li key={b.block} className="flex justify-between">
-              <Link href={`/exercises/${b.exercise.id}`} className="hover:text-[var(--accent)]">
+            <li key={b.block} className="flex items-baseline justify-between gap-3">
+              <Link href={`/exercises/${b.exercise.id}`} className="min-w-0 hover:text-[var(--accent)]">
                 [{b.block}] {b.exercise.name}
               </Link>
-              <span className="text-[var(--muted)]">
+              <span className="flex-shrink-0 whitespace-nowrap text-[var(--muted)]">
                 {b.sets}×{b.prescription?.targetReps ?? b.prescription?.targetSeconds ?? b.exercise.recommendedReps ?? b.exercise.recommendedTime}
               </span>
             </li>
