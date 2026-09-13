@@ -2,9 +2,12 @@
   "name": "calistenia-adaptativa",
   "version": "0.1.0",
   "private": true,
-  "description": "Motor de entrenamiento adaptativo de calistenia — FASE 1: el cerebro (datos + motor de progresion).",
+  "description": "Motor de entrenamiento adaptativo de calistenia + app (Next.js/Supabase).",
   "type": "module",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "scenario": "tsx src/scenarios/muscleup-user.ts",
     "check-data": "tsx src/scenarios/check-data-integrity.ts",
     "weekly-plan": "tsx src/scenarios/weekly-plan-demo.ts",
@@ -12,8 +15,20 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0",
     "vitest": "^2.1.0"
