@@ -65,10 +65,32 @@ function levelCompatibility(exercise: Exercise, user: UserContext): number {
   return Math.max(0, 1 - distanceFromNextStep / 5);
 }
 
+/**
+ * §31 del brief: si el usuario marcó varios objetivos, se priorizan en el
+ * orden en que los puso (primaryGoal primero, luego el resto de `goals` en
+ * su orden), con un peso que decae por rango (1, 1/2, 1/3...) — el objetivo
+ * principal domina, pero los secundarios siguen empujando un poco el
+ * ranking en vez de desaparecer. `specific_skill` no aporta nada aquí
+ * (su relevancia ya se mide en `skillRelevance`, vía el requisito/target
+ * concreto) — sumarlo también aquí sería contar la misma prioridad dos veces.
+ */
 function goalRelevance(exercise: Exercise, user: UserContext): number {
-  const capabilities = GOAL_CAPABILITY_MAP[user.profile.primaryGoal] ?? [];
-  if (capabilities.length === 0) return 0;
-  return Math.max(0, ...capabilities.map((c) => exercise.capabilitiesDeveloped[c] ?? 0));
+  const orderedGoals = [
+    user.profile.primaryGoal,
+    ...user.profile.goals.filter((g) => g !== user.profile.primaryGoal),
+  ];
+
+  let weightedScore = 0;
+  let totalWeight = 0;
+  orderedGoals.forEach((goal, rank) => {
+    const weight = 1 / (rank + 1);
+    const capabilities = GOAL_CAPABILITY_MAP[goal] ?? [];
+    if (capabilities.length === 0) return; // p.ej. "specific_skill": no aplica aquí
+    totalWeight += weight;
+    weightedScore += weight * Math.max(0, ...capabilities.map((c) => exercise.capabilitiesDeveloped[c] ?? 0));
+  });
+
+  return totalWeight > 0 ? weightedScore / totalWeight : 0;
 }
 
 function progressionReadiness(exercise: Exercise, user: UserContext): number {

@@ -24,7 +24,9 @@ const profile: UserProfile = {
   calisthenicsExperience: "intermediate",
   sleepHoursAvg: 7,
   activityLevel: "moderate",
-  goals: ["specific_skill"],
+  // Ejemplo de §31 del brief: varios objetivos con prioridad (1. muscle-up,
+  // 2. ganar fuerza, 3. ganar masa muscular), no un único objetivo aislado.
+  goals: ["specific_skill", "strength", "muscle_mass"],
   primaryGoal: "specific_skill",
   primarySkillTarget: "muscle_up",
   daysPerWeek: 4,
@@ -52,7 +54,6 @@ const capabilityProfile = computeCapabilityProfile(assessment, EXERCISES_BY_ID);
 const targetSkill = SKILLS_BY_ID["muscle_up"]!;
 const gate = evaluateSkillGate(targetSkill, assessment, capabilityProfile);
 const ranked = rankExercises(EXERCISES, { user: { profile, assessment, capabilityProfile }, targetSkill, limitations: gate.limitations });
-const workout = assembleWorkoutSketch(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes);
 
 // ==== 1. Perfil de capacidades ====
 section(1, "Perfil de capacidades");
@@ -125,12 +126,22 @@ for (const id of ["chest_to_bar_pull_up", "explosive_pull_up", "straight_bar_dip
 }
 
 // ==== 12. Primer entrenamiento recomendado ====
-section(12, `Primer entrenamiento recomendado (${profile.sessionDurationMinutes} min)`);
-for (const item of workout) {
-  const ex = item.exercise;
-  const volume = ex.recommendedTime ? ex.recommendedTime : `${ex.recommendedSets}x${ex.recommendedReps ?? "?"}`;
-  console.log(`[${item.block}] ${ex.name} — ${volume}, descanso ${ex.restSeconds}s`);
+function printWorkout(minutes: number) {
+  const w = assembleWorkoutSketch(ranked, EXERCISES_BY_ID, minutes);
+  for (const item of w) {
+    const ex = item.exercise;
+    const volume = ex.recommendedTime ? ex.recommendedTime : `x${ex.recommendedReps ?? "?"}`;
+    console.log(`[${item.block}] ${ex.name} — ${item.sets}${volume}, descanso ${ex.restSeconds}s`);
+  }
 }
+
+section(12, `Primer entrenamiento recomendado (${profile.sessionDurationMinutes} min)`);
+printWorkout(profile.sessionDurationMinutes);
+
+console.log(`\n-- Misma prioridad, sesión de 20 min ("hoy tengo poco tiempo", §19) --`);
+printWorkout(20);
+console.log(`\n-- Misma prioridad, sesión de 90 min ("hoy tengo mucho tiempo", §19) --`);
+printWorkout(90);
 
 // ==== 13 y 14. Criterios para progresar / retroceder ====
 section(13, "Criterios para progresar / 14. criterios para retroceder");

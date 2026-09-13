@@ -156,6 +156,50 @@ hoy devuelven un valor neutral documentado — se implementan en FASE 3 (motor
 de fatiga) y no necesitan cambiar la forma de la fórmula, solo rellenar la
 función.
 
+**`goalRelevance` con varios objetivos (§31):** si el usuario marcó varios
+objetivos, se ordenan `[primaryGoal, ...resto de goals en su orden]` y se
+pesan por rango con decaimiento `1/(rango+1)` (1, 1/2, 1/3...) antes de
+normalizar — el objetivo principal domina la puntuación pero los secundarios
+siguen empujando el ranking en vez de desaparecer del todo. `specific_skill`
+no aporta nada a `goalRelevance` (su peso ya se mide en `skillRelevance`, vía
+el requisito/ejercicio concreto de la skill objetivo) — sumarlo aquí también
+contaría la misma prioridad dos veces. Validado en `tests/exerciseSelector.test.ts`.
+
+## 7bis. Modos de entrenamiento (§6)
+
+`src/data/trainingEnvironments.ts` define los 6 modos del brief (calistenia
+pura, calistenia + gimnasio, gimnasio enfocado a calistenia, minimalista, en
+casa, en parque) como **presets de la lista de equipamiento**, no como un
+concepto nuevo para el motor: `equipmentGate` en `exerciseSelector.ts` solo
+entiende "lista de material disponible", así que un modo es solo una fila de
+datos que resuelve a esa lista (`resolveEquipment(environmentId, extra)`).
+Añadir un modo nuevo (o cambiar qué material incluye uno existente) es editar
+esa tabla, no tocar el motor.
+
+## 7ter. Duración de sesión flexible (§19)
+
+`assembleWorkoutSketch` no solo varía cuántos ejercicios entran en la sesión
+según los minutos disponibles: calcula un presupuesto de segundos real
+(`estimateSetSeconds` = trabajo estimado por serie + descanso, usando
+`recommendedReps`/`recommendedTime` de cada ejercicio) y ajusta las **series**
+de cada bloque a ese presupuesto:
+
+- Bloques se añaden en **orden de prioridad** (skill si está al alcance →
+  fuerza principal → secundaria → accesorio → core → movilidad). El primer
+  bloque siempre entra (mejor una sesión corta con algo dentro que vacía por
+  un redondeo); a partir de ahí, si un bloque no cabe con al menos 2 series,
+  se descarta y el resto de la sesión para ahí — así una sesión de 20 min
+  mantiene las prioridades y solo pierde lo de abajo, tal como pide el brief
+  ("Tengo solamente 25 minutos").
+- Si sobra presupuesto tras cubrir los bloques base, se amplían las series de
+  "Fuerza secundaria" y "Accesorio" (hasta `recommendedSets + 2`) en vez de
+  añadir bloques nuevos sin relación con la sesión — el ejemplo de los 90
+  minutos del brief.
+
+Validado en `tests/workoutSketch.test.ts` (una sesión de 20 min nunca tiene
+más bloques que una de 90; el bloque de fuerza secundaria gana series con más
+tiempo, no solo aparecen bloques nuevos).
+
 ## 8. Principio de no repetición estúpida (§30)
 
 El selector de ejercicios no sustituye un ejercicio que el usuario ya está
@@ -172,9 +216,11 @@ sesión para el ejercicio principal ya asignado.
   opcional para que FASE 3 lo rellene sin cambiar la firma de `scoreExercise`.
 - **Generador de sesión completo con periodización semanal** (FASE 2): hoy
   `workoutSketch.ts` monta **una** sesión de ejemplo con la estructura de
-  bloques del §17 a partir de los ejercicios recomendados, pero no gestiona
-  semanas, series de progresión temporal (3×5 → 3×8) ni reorganización por
-  disponibilidad — eso es el "workout engine" de FASE 2.
+  bloques del §17, ajustada al tiempo real disponible (§19, ver §7ter), pero
+  no gestiona la progresión de esa sesión semana a semana (3×5 → 3×8 a lo
+  largo de varias semanas), ni cuántos días entrena a la semana, ni cómo
+  reorganizar un plan de varios días si cambia la disponibilidad (§20) — eso
+  es el "workout engine" de FASE 2.
 - **Nutrición, gamificación, IA conversacional**: fuera de alcance, FASE 5/6.
 
 ## 10. Entidades de este documento vs entidades de §28 del brief
