@@ -76,3 +76,28 @@ export function exerciseFatigueLoad(exercise: Exercise, fatigueByMuscle: Partial
 
   return Math.max(maxPrimary, avgSecondary * SECONDARY_MUSCLE_WEIGHT);
 }
+
+/**
+ * "Envejece" un `trainingLog` en `daysElapsed` días — para encadenar
+ * semanas: el `trainingLog` acumulado queda siempre relativo a "ahora mismo,
+ * justo después de la última sesión registrada". Cuando pase una semana y
+ * toque generar la siguiente, ese "ahora" ya no es cierto — hay que
+ * envejecer el log ANTES de generar la semana nueva, no después de
+ * generarla. Orden correcto para encadenar N semanas:
+ *
+ *   1. `trainingLog = advanceTrainingLog(trainingLog, diasTranscurridos)`
+ *   2. `generateWeeklyPlan(..., { trainingLog, ... })`
+ *   3. registrar lo entrenado esta semana (relativo a SU propio día 0) y
+ *      añadirlo: `trainingLog = [...trainingLog, ...estaSemana]` — SIN
+ *      volver a envejecer aquí, ya se hizo en el paso 1 de la ronda actual.
+ *
+ * Invertir el orden (generar la semana con el log todavía sin envejecer,
+ * o volver a envejecer después de añadir la semana actual) hace que cada
+ * semana se genere pensando que la anterior terminó "hoy" en vez de hace
+ * varios días, disparando fatiga y redirecciones que no corresponden. Ver
+ * el ejemplo completo en `tests/integration.test.ts` ("simulación de
+ * varias semanas").
+ */
+export function advanceTrainingLog(log: TrainingDay[], daysElapsed: number): TrainingDay[] {
+  return log.map((day) => ({ ...day, daysAgo: day.daysAgo + daysElapsed }));
+}
