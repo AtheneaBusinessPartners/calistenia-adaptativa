@@ -84,6 +84,35 @@ esa semana el usuario. Esto está probado explícitamente en
 en un ejercicio, se regenera el plan para 3 días, y se comprueba que
 `planNextSession` para ese ejercicio no cambia.
 
+## 4bis. `planNextSession` y `generateWeeklyPlan` estaban construidos pero NO conectados
+
+Al reverificar FASE 2 se encontró que `generateWeeklyPlan` llamaba solo a
+`assembleWorkoutSketch` (ranking + presupuesto de tiempo de FASE 1), que
+siempre usa `exercise.recommendedSets`/`recommendedReps` — el rango estático
+de la ficha. `planNextSession` (la progresión real sesión a sesión) existía
+y tenía tests, pero ningún camino de código real la invocaba desde el plan
+semanal: eran dos sistemas construidos en paralelo y nunca cableados.
+
+Se corrigió con `applyTrainingHistory(blocks, historyByExercise,
+exercisesById)`: un paso que, cuando hay historial real para un ejercicio de
+un bloque, sustituye su volumen estático por la prescripción de
+`planNextSession` (y cambia el ejercicio del bloque si la prescripción
+decide avanzar o regresar de línea). `generateWeeklyPlan` acepta
+`historyByExercise` opcional y aplica esto por cada día. Sin historial, el
+comportamiento es exactamente el de antes (compatible con todo lo ya
+probado).
+
+**Efecto secundario descubierto al añadir esto**: si un ejercicio de menor
+prioridad (p. ej. "Accesorio") avanza de línea y su siguiente progresión
+resulta ser el MISMO ejercicio que ya ocupa un bloque de mayor prioridad ese
+día (p. ej. "Fuerza principal" ya es ese ejercicio), sin control se
+duplicaría el mismo ejercicio dos veces bajo etiquetas distintas.
+`applyTrainingHistory` deduplica por `exercise.id` en orden de prioridad de
+bloque (los bloques ya llegan ordenados Skill → Fuerza principal → ... →
+Movilidad) y descarta el bloque de menor prioridad que colisiona, en vez de
+rellenarlo con otra cosa — un hueco así se prefiere vacío a duplicado.
+Validado en `tests/weeklyPlan.test.ts`.
+
 ## 5. Qué NO se construye todavía
 
 - **Fatigue engine real** (FASE 3): la regla de "evitar el patrón de ayer"

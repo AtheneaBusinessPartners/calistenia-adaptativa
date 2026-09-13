@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateWeeklyPlan } from "../src/engine/weeklyPlan.js";
+import { applyTrainingHistory, generateWeeklyPlan } from "../src/engine/weeklyPlan.js";
 import { planNextSession } from "../src/engine/sessionPlanner.js";
 import { rankExercises } from "../src/engine/exerciseSelector.js";
 import { EXERCISES, EXERCISES_BY_ID } from "../src/data/exercises.js";
@@ -61,6 +61,59 @@ describe("generateWeeklyPlan (§20)", () => {
   it("clampa un número de días fuera de 2-6 en vez de fallar", () => {
     const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 10);
     expect(plan.days).toHaveLength(6);
+  });
+});
+
+describe("integración historial <-> plan semanal (§13 dentro de §17-20)", () => {
+  it("sin historial, el plan usa el volumen estático del ejercicio (recommendedSets)", () => {
+    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4);
+    const mainBlock = plan.days[0]!.blocks.find((b) => b.block === "Fuerza principal")!;
+    expect(mainBlock.prescription).toBeUndefined();
+  });
+
+  it("con historial, el plan refleja la prescripción real de planNextSession, no el rango estático de la ficha", () => {
+    const chestToBar = EXERCISES_BY_ID["chest_to_bar_pull_up"]!;
+    const history: SessionLogEntry[] = [{ reps: 2, rir: 2, techniqueOk: true }];
+    const historyByExercise = { [chestToBar.id]: history };
+
+    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, historyByExercise);
+    const mainBlock = plan.days[0]!.blocks.find((b) => b.block === "Fuerza principal")!;
+
+    expect(mainBlock.exercise.id).toBe(chestToBar.id); // sigue siendo la prioridad #1, la ranking no cambió
+    expect(mainBlock.prescription).toBeDefined();
+    expect(mainBlock.prescription!.targetReps).toBe(3); // 2 reps la última vez -> sube a 3, no el "3-5" estático de la ficha
+  });
+
+  it("applyTrainingHistory cambia de ejercicio en el bloque si el historial dice que toca avanzar de línea", () => {
+    const pullUp = EXERCISES_BY_ID["pull_up"]!;
+    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4);
+    const accessoryBlock = plan.days[0]!.blocks.find((b) => b.exercise.id === pullUp.id);
+    expect(accessoryBlock).toBeDefined();
+
+    // Aislado del resto de bloques del día para no mezclar esta aserción
+    // con la deduplicación por colisión (probada aparte, más abajo).
+    const history: SessionLogEntry[] = [{ reps: 8, rir: 2, techniqueOk: true }]; // cumple el listón de pull_up (8)
+    const updated = applyTrainingHistory([accessoryBlock!], { [pullUp.id]: history }, EXERCISES_BY_ID);
+
+    expect(updated[0]!.exercise.id).toBe("chest_to_bar_pull_up"); // progressions[0] de pull_up
+    expect(updated[0]!.exercise.id).not.toBe(pullUp.id);
+  });
+
+  it("si avanzar de línea hace converger dos bloques en el mismo ejercicio, no lo duplica: descarta el de menor prioridad", () => {
+    const pullUp = EXERCISES_BY_ID["pull_up"]!;
+    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4);
+    const mainBlock = plan.days[0]!.blocks.find((b) => b.block === "Fuerza principal")!;
+    expect(mainBlock.exercise.id).toBe("chest_to_bar_pull_up"); // ya es el foco principal de este usuario
+
+    // Si el "Accesorio" (dominada) avanza de línea, su progressions[0] es
+    // justo chest_to_bar_pull_up — el mismo ejercicio que ya es principal.
+    const history: SessionLogEntry[] = [{ reps: 8, rir: 2, techniqueOk: true }];
+    const updated = applyTrainingHistory(plan.days[0]!.blocks, { [pullUp.id]: history }, EXERCISES_BY_ID);
+
+    const chestToBarBlocks = updated.filter((b) => b.exercise.id === "chest_to_bar_pull_up");
+    expect(chestToBarBlocks).toHaveLength(1);
+    expect(chestToBarBlocks[0]!.block).toBe("Fuerza principal"); // se queda el de mayor prioridad
+    expect(updated.some((b) => b.block === "Accesorio")).toBe(false); // el duplicado se descarta, no se rellena con otra cosa
   });
 });
 

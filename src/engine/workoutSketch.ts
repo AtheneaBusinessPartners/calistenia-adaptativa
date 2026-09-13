@@ -1,11 +1,13 @@
 import type { Exercise, ExerciseScoreBreakdown, MovementPatternId } from "./types.js";
 import { parseAverage } from "./rangeText.js";
+import type { NextSessionPrescription } from "./sessionPlanner.js";
 
 export interface WorkoutBlockItem {
   block: string;
   exercise: Exercise;
-  score: ExerciseScoreBreakdown;
+  score: ExerciseScoreBreakdown; // ranking previo a aplicar historial — ver applyTrainingHistory
   sets: number; // series prescritas para ESTA sesión (puede diferir de exercise.recommendedSets)
+  prescription?: NextSessionPrescription; // presente solo si applyTrainingHistory encontró historial real para este ejercicio
 }
 
 const MIN_SETS = 2;

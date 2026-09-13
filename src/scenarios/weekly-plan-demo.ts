@@ -3,7 +3,6 @@ import { computeCapabilityProfile } from "../engine/capabilityProfile.js";
 import { evaluateSkillGate } from "../engine/skillGate.js";
 import { rankExercises } from "../engine/exerciseSelector.js";
 import { generateWeeklyPlan } from "../engine/weeklyPlan.js";
-import { planNextSession } from "../engine/sessionPlanner.js";
 import type { SessionLogEntry } from "../engine/progression.js";
 import { EXERCISES, EXERCISES_BY_ID } from "../data/exercises.js";
 import { SKILLS_BY_ID } from "../data/skills.js";
@@ -41,45 +40,63 @@ function section(title: string) {
   console.log("-".repeat(60));
 }
 
+function printDay(label: string, blocks: ReturnType<typeof generateWeeklyPlan>["days"][number]["blocks"]) {
+  console.log(`\n${label}:`);
+  for (const item of blocks) {
+    const target = item.prescription
+      ? item.prescription.targetReps !== undefined
+        ? `${item.sets}x${item.prescription.targetReps} reps`
+        : `${item.sets}x${item.prescription.targetSeconds}s`
+      : `${item.sets}x${item.exercise.recommendedReps ?? item.exercise.recommendedTime ?? "?"} (estático, sin historial)`;
+    const note = item.prescription ? ` — ${item.prescription.note}` : "";
+    console.log(`  [${item.block}] ${item.exercise.name}: ${target}${note}`);
+  }
+}
+
 const capabilityProfile = computeCapabilityProfile(assessment, EXERCISES_BY_ID);
 const targetSkill = SKILLS_BY_ID["muscle_up"]!;
 const gate = evaluateSkillGate(targetSkill, assessment, capabilityProfile);
 const ranked = rankExercises(EXERCISES, { user: { profile, assessment, capabilityProfile }, targetSkill, limitations: gate.limitations });
 
-// ==== 1. Plan semanal de 4 días ====
-section("Plan semanal — 4 días/semana");
-const plan4 = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4);
-for (const day of plan4.days) {
-  console.log(`\nDía ${day.dayIndex + 1} (${day.focusLabel}):`);
-  for (const item of day.blocks) {
-    console.log(`  [${item.block}] ${item.exercise.name} (${item.exercise.movementPattern})`);
+// ==== Semana 1: sin historial todavía ====
+section("Semana 1 (sin historial): el plan usa el volumen estático de cada ficha");
+const week1 = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4);
+printDay(`Día 1 (${week1.days[0]!.focusLabel})`, week1.days[0]!.blocks);
+
+// Simulamos que el usuario entrena esa "Fuerza principal" (chest-to-bar,
+// empezando en 0) durante varias sesiones, registrando lo conseguido.
+const history: Record<string, SessionLogEntry[]> = {};
+let trackedExerciseId = week1.days[0]!.blocks.find((b) => b.block === "Fuerza principal")!.exercise.id;
+history[trackedExerciseId] = [{ reps: 0, rir: 2, techniqueOk: true }];
+
+// ==== Semanas 2-4: el plan ya usa la prescripción real, sesión a sesión ====
+for (let week = 2; week <= 4; week++) {
+  section(`Semana ${week}: el plan YA refleja el historial real, no el rango estático`);
+  const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, history);
+  const day0 = plan.days[0]!;
+  printDay(`Día 1 (${day0.focusLabel})`, day0.blocks);
+
+  // El usuario cumple lo prescrito esta semana; se registra para la siguiente.
+  const mainBlock = day0.blocks.find((b) => b.block === "Fuerza principal")!;
+  const achievedReps = mainBlock.prescription?.targetReps ?? 0;
+  if (mainBlock.exercise.id !== trackedExerciseId) {
+    // planNextSession decidió avanzar de línea: el historial es del ejercicio nuevo.
+    trackedExerciseId = mainBlock.exercise.id;
+    history[trackedExerciseId] = [];
   }
+  history[trackedExerciseId]!.push({ reps: achievedReps, rir: 2, techniqueOk: true });
 }
 
-// ==== 2. Progresión sesión a sesión del ejercicio limitante ====
-section("Progresión sesión a sesión — Chest-to-bar (limitación #1)");
-const chestToBar = EXERCISES_BY_ID["chest_to_bar_pull_up"]!;
-const history: SessionLogEntry[] = [];
-let currentExerciseId = chestToBar.id;
-let reps = 0; // empieza en 0, tal como el assessment inicial
-for (let session = 1; session <= 6; session++) {
-  const exercise = EXERCISES_BY_ID[currentExerciseId]!;
-  history.push({ reps, rir: 2, techniqueOk: true });
-  const prescription = planNextSession(exercise, history, EXERCISES_BY_ID);
-  console.log(`Sesión ${session}: ${exercise.name} hizo ${reps} reps -> siguiente: ${prescription.note}`);
-  if (prescription.exerciseId !== currentExerciseId) {
-    currentExerciseId = prescription.exerciseId;
-    history.length = 0; // nuevo ejercicio, historial propio
-  }
-  reps = prescription.targetReps ?? reps;
-}
-
-// ==== 3. Reorganización por disponibilidad ====
-section("Reorganización: de 4 a 3 días/semana (§20)");
-const plan3 = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 3);
-console.log(`Plan de 4 días tenía ${plan4.days.length} sesiones; el reorganizado tiene ${plan3.days.length}.`);
-const pullUpHistory: SessionLogEntry[] = [{ reps: 6, rir: 2, techniqueOk: true }];
-const before = planNextSession(EXERCISES_BY_ID["pull_up"]!, pullUpHistory, EXERCISES_BY_ID);
+// ==== Reorganización por disponibilidad (§20) ====
+section("Reorganización: de 4 a 3 días/semana a mitad de la progresión");
+const planBefore = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, history);
+const planAfter = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 3, history);
+const mainBefore = planBefore.days[0]!.blocks.find((b) => b.block === "Fuerza principal")!;
+const mainAfter = planAfter.days[0]!.blocks.find((b) => b.block === "Fuerza principal")!;
+console.log(`Antes (4 días): ${mainBefore.exercise.name} — prescripción: ${JSON.stringify(mainBefore.prescription)}`);
+console.log(`Después (3 días): ${mainAfter.exercise.name} — prescripción: ${JSON.stringify(mainAfter.prescription)}`);
 console.log(
-  `Prescripción para "Dominada" es idéntica antes y después de reorganizar (no depende del nº de días): ${before.note}`,
+  mainBefore.exercise.id === mainAfter.exercise.id && JSON.stringify(mainBefore.prescription) === JSON.stringify(mainAfter.prescription)
+    ? "-> Idéntico: reorganizar días no altera la progresión en curso."
+    : "-> ATENCIÓN: la reorganización cambió la progresión (no debería).",
 );
