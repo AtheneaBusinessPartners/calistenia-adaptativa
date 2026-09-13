@@ -1,10 +1,12 @@
-import type { Exercise, TrainingDay } from "./types.js";
+import type { CheckIn, Exercise, TrainingDay } from "./types.js";
 import { assembleWorkoutSketch, type WorkoutBlockItem } from "./workoutSketch.js";
 import { getWeeklySplitTemplate, type DayArchetype } from "../data/weeklySplitTemplates.js";
 import { planNextSession } from "./sessionPlanner.js";
 import type { SessionLogEntry } from "./progression.js";
 import { rankExercises, type SelectorContext } from "./exerciseSelector.js";
 import { computeMuscleFatigue } from "./fatigueEngine.js";
+import { applyCheckInToFatigue } from "./checkIn.js";
+import { explainFatigueImpact, type FatigueExplanation } from "./fatigueExplanation.js";
 
 export interface DayPlan {
   dayIndex: number; // 0-based dentro de la semana, no un día de calendario concreto
@@ -12,6 +14,7 @@ export interface DayPlan {
   focusLabel: string;
   blocks: WorkoutBlockItem[];
   fatigueByMuscle: Record<string, number>; // fatiga con la que se generó este día, para depurar/explicar
+  fatigueExplanation: FatigueExplanation; // §16: por qué cambió (o no) el bloque principal por fatiga
 }
 
 export interface WeeklyPlan {
@@ -27,6 +30,10 @@ export interface GenerateWeeklyPlanOptions {
    * resto de días de la semana igualmente acumulan fatiga real generada
    * por los propios días anteriores de esa semana. */
   trainingLog?: TrainingDay[];
+  /** Check-in de HOY (§15), aplicado solo al primer día de la semana que se
+   * genera — cada día siguiente necesitaría su propio check-in en el
+   * momento, que todavía no existe al generar toda la semana de una vez. */
+  todayCheckIn?: CheckIn;
 }
 
 /**
@@ -123,11 +130,22 @@ export function generateWeeklyPlan(
       for (const d of runningLog) d.daysAgo += 1;
     }
 
-    const fatigueByMuscle = computeMuscleFatigue(runningLog, exercisesById);
-    const dayCtx: SelectorContext = { ...ctx, user: { ...ctx.user, fatigueByMuscle } };
+    let fatigueByMuscle = computeMuscleFatigue(runningLog, exercisesById);
+    let painZones = ctx.user.painZones;
+    if (dayIndex === 0 && options?.todayCheckIn) {
+      fatigueByMuscle = applyCheckInToFatigue(fatigueByMuscle, options.todayCheckIn);
+      // El dolor del check-in de hoy también debe bloquear ejercicios de
+      // verdad (gate duro ya existente desde FASE 1), no quedarse solo en
+      // un aviso de texto — se une al painZones que ya trajera el usuario.
+      if (options.todayCheckIn.painZones && options.todayCheckIn.painZones.length > 0) {
+        painZones = Array.from(new Set([...(painZones ?? []), ...options.todayCheckIn.painZones]));
+      }
+    }
+    const dayCtx: SelectorContext = { ...ctx, user: { ...ctx.user, fatigueByMuscle, painZones } };
     const ranked = rankExercises(exercises, dayCtx);
 
     let blocks = assembleWorkoutSketch(ranked, exercisesById, sessionDurationMinutes);
+    const fatigueExplanation = explainFatigueImpact(exercises, dayCtx, fatigueByMuscle, exercisesById, sessionDurationMinutes);
 
     if (options?.historyByExercise) {
       blocks = applyTrainingHistory(blocks, options.historyByExercise, exercisesById);
@@ -137,6 +155,7 @@ export function generateWeeklyPlan(
       dayIndex,
       archetype,
       focusLabel: archetype === "priority_focus" ? "Prioridad (limitación principal)" : "Complementario",
+      fatigueExplanation,
       blocks,
       fatigueByMuscle,
     });

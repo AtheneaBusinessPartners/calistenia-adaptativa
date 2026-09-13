@@ -1,4 +1,5 @@
 import type { CheckIn } from "./types.js";
+import { MUSCLES } from "../data/muscles.js";
 
 const FEELING_BUMP: Record<CheckIn["feeling"], number> = {
   very_tired: 20,
@@ -36,8 +37,17 @@ export function applyCheckInToFatigue(
   const globalBump = FEELING_BUMP[checkIn.feeling] + SLEEP_BUMP[checkIn.sleepQuality] + STRESS_BUMP[checkIn.stress];
   const result: Record<string, number> = { ...baseFatigue };
 
-  for (const muscleId of Object.keys(result)) {
-    result[muscleId] = clamp(result[muscleId]! + globalBump);
+  // El bump global representa cansancio sistémico (mal sueño, estrés) que
+  // no es específico de un músculo ya entrenado — recorre TODOS los
+  // músculos conocidos, no solo los que ya tenían fatiga objetiva. Si solo
+  // tocara `Object.keys(result)`, un usuario recién llegado sin ningún
+  // historial ("muy cansado" pero fatigue={}) no vería ningún efecto en
+  // absoluto, aunque su percepción subjetiva debería igualmente atenuar la
+  // sesión de hoy.
+  if (globalBump !== 0) {
+    for (const muscle of MUSCLES) {
+      result[muscle.id] = clamp((result[muscle.id] ?? 0) + globalBump);
+    }
   }
   for (const muscleId of checkIn.fatigueZones ?? []) {
     result[muscleId] = clamp((result[muscleId] ?? 0) + SPECIFIC_ZONE_BUMP);

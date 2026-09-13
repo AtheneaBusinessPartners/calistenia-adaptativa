@@ -2,9 +2,7 @@ import { computeCapabilityProfile } from "../engine/capabilityProfile.js";
 import { evaluateSkillGate } from "../engine/skillGate.js";
 import type { SelectorContext } from "../engine/exerciseSelector.js";
 import { generateWeeklyPlan } from "../engine/weeklyPlan.js";
-import { computeMuscleFatigue } from "../engine/fatigueEngine.js";
-import { applyCheckInToFatigue, checkInSafetyMessage } from "../engine/checkIn.js";
-import { explainFatigueImpact } from "../engine/fatigueExplanation.js";
+import { checkInSafetyMessage } from "../engine/checkIn.js";
 import { applyDeloadWeek, shouldRecommendDeloadWeek } from "../engine/deloadWeek.js";
 import { EXERCISES, EXERCISES_BY_ID } from "../data/exercises.js";
 import { SKILLS_BY_ID } from "../data/skills.js";
@@ -52,17 +50,19 @@ const preFatiguedLog: TrainingDay[] = [
   { daysAgo: 1, exercises: [{ exerciseId: "chest_to_bar_pull_up", sets: 6, reps: 5, rir: 0 }] },
   { daysAgo: 2, exercises: [{ exerciseId: "explosive_pull_up", sets: 5, reps: 5, rir: 0 }] },
 ];
-const objectiveFatigue = computeMuscleFatigue(preFatiguedLog, EXERCISES_BY_ID);
-console.log("Fatiga objetiva (por historial real):", objectiveFatigue);
-
-const explanation = explainFatigueImpact(EXERCISES, ctx, objectiveFatigue, EXERCISES_BY_ID, profile.sessionDurationMinutes);
-console.log(explanation.changed ? explanation.message : "(la fatiga no fue suficiente para cambiar la sesión)");
 
 const plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, { trainingLog: preFatiguedLog });
-console.log(`\nDía 1 con esa fatiga: ${plan.days[0]!.blocks.map((b) => `[${b.block}] ${b.exercise.name}`).join(" | ")}`);
+console.log("Fatiga objetiva (por historial real) al arrancar el día 1:", plan.days[0]!.fatigueByMuscle);
+// La explicación ya viene integrada en el propio plan (DayPlan.fatigueExplanation) — no hace falta volver a llamar explainFatigueImpact aparte.
+console.log(
+  plan.days[0]!.fatigueExplanation.changed
+    ? plan.days[0]!.fatigueExplanation.message
+    : "(la fatiga no fue suficiente para cambiar la sesión)",
+);
+console.log(`Día 1 con esa fatiga: ${plan.days[0]!.blocks.map((b) => `[${b.block}] ${b.exercise.name}`).join(" | ")}`);
 
-// ==== §15 del brief: check-in y diferencia fatiga vs dolor ====
-section("Check-in antes de entrenar (§15): percepción subjetiva + dolor real");
+// ==== §15 del brief: check-in antes de entrenar, integrado en el plan ====
+section("Check-in antes de entrenar (§15): percepción subjetiva + dolor real, ya dentro del generador");
 const checkIn: CheckIn = {
   feeling: "tired",
   sleepQuality: "poor",
@@ -72,8 +72,13 @@ const checkIn: CheckIn = {
   painZones: ["lower_back"],
   painSeverity: "moderate",
 };
-const adjustedFatigue = applyCheckInToFatigue(objectiveFatigue, checkIn);
-console.log("Fatiga ajustada por el check-in:", adjustedFatigue);
+// todayCheckIn se aplica al día 0 del plan que se genere — el mismo
+// generateWeeklyPlan que ya usa el historial real, no una función aparte.
+const planWithCheckIn = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, {
+  trainingLog: preFatiguedLog,
+  todayCheckIn: checkIn,
+});
+console.log("Fatiga ajustada por el check-in:", planWithCheckIn.days[0]!.fatigueByMuscle);
 const safety = checkInSafetyMessage(checkIn);
 console.log(`Aviso de seguridad: ${safety.shouldWarn ? safety.message : "(ninguno)"}`);
 console.log("(El dolor en lower_back NO entra en la fatiga: va a painZones, gate duro en exerciseSelector.ts)");

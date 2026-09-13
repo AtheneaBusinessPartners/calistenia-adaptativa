@@ -86,6 +86,28 @@ describe("FASE 3: fatiga real dentro de generateWeeklyPlan", () => {
     expect(plan.days[1]!.fatigueByMuscle[day1MainMuscle] ?? 0).toBeGreaterThan(0);
   });
 
+  it("un check-in de 'muy cansado' en un usuario SIN historial también amortigua el día 1 (§15: percepción subjetiva cuenta aunque no haya fatiga objetiva todavía)", () => {
+    const freshPlan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4);
+    const checkedInPlan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, {
+      todayCheckIn: { feeling: "very_tired", sleepQuality: "poor", stress: "high", motivation: "low" },
+    });
+
+    const freshTotal = Object.values(freshPlan.days[0]!.fatigueByMuscle).reduce((a, b) => a + b, 0);
+    const checkedInTotal = Object.values(checkedInPlan.days[0]!.fatigueByMuscle).reduce((a, b) => a + b, 0);
+
+    expect(freshTotal).toBe(0); // sin check-in, día 0 sin historial = sin fatiga
+    expect(checkedInTotal).toBeGreaterThan(0); // con check-in, la percepción subjetiva ya cuenta
+  });
+
+  it("el dolor reportado en el check-in de hoy bloquea de verdad los ejercicios de esa zona en el plan (no solo un aviso de texto)", () => {
+    const plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 4, {
+      todayCheckIn: { feeling: "normal", sleepQuality: "good", stress: "low", motivation: "high", painZones: ["lats", "biceps"] },
+    });
+    const usedMuscles = plan.days[0]!.blocks.flatMap((b) => [...b.exercise.primaryMuscles, ...(b.exercise.secondaryMuscles ?? [])]);
+    expect(usedMuscles).not.toContain("lats");
+    expect(usedMuscles).not.toContain("biceps");
+  });
+
   it("una fatiga alta de tirón previa a la semana redirige 'Fuerza principal' fuera del patrón de tirón (§16 del brief)", () => {
     // Mismo ejemplo de espíritu que el brief: espalda/bíceps muy cargados.
     const preFatiguedLog: TrainingDay[] = [
@@ -102,6 +124,12 @@ describe("FASE 3: fatiga real dentro de generateWeeklyPlan", () => {
 
     expect(freshMain.exercise.movementPattern).toBe("vertical_pull"); // sin fatiga, gana chest-to-bar como siempre
     expect(fatiguedMain.exercise.movementPattern).not.toBe("vertical_pull"); // con fatiga alta ahí, se redirige
+
+    // §16: el DayPlan lleva la explicación ya integrada, no hay que
+    // volver a llamar explainFatigueImpact aparte con los parámetros justos.
+    expect(freshPlan.days[0]!.fatigueExplanation.changed).toBe(false);
+    expect(fatiguedPlan.days[0]!.fatigueExplanation.changed).toBe(true);
+    expect(fatiguedPlan.days[0]!.fatigueExplanation.message).toContain("tirón");
   });
 });
 

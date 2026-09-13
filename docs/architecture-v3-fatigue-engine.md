@@ -70,6 +70,39 @@ fatigadas, y — por separado, nunca mezclado — zonas con **dolor**.
   precaución/consulta profesional para mostrar en la UI (FASE 4). El motor
   no diagnostica ni decide "es solo un tirón, sigue entrenando".
 
+### Repaso de FASE 3: tres piezas construidas pero no conectadas
+
+Al revisar esta fase por segunda vez se encontró el mismo patrón de bug que
+ya había aparecido al conectar FASE 2 (`sessionPlanner` sin llamar desde
+`generateWeeklyPlan`): módulos con sus propios tests, correctos en
+aislamiento, pero que ningún camino de código real invocaba juntos.
+
+1. **`applyCheckInToFatigue` nunca se llamaba desde `generateWeeklyPlan`.**
+   El check-in existía y tenía tests, pero el plan semanal real se generaba
+   siempre con fatiga puramente objetiva, ignorando la percepción subjetiva
+   del §15. Se añadió `GenerateWeeklyPlanOptions.todayCheckIn`, aplicado al
+   día 0 del plan (los días siguientes de esa misma semana no tienen su
+   propio check-in todavía — eso pasará sesión a sesión, no al generar la
+   semana entera de golpe).
+2. **El bump global del check-in solo tocaba músculos que YA tenían fatiga
+   objetiva.** Un usuario recién llegado sin ningún historial que reportara
+   "muy cansado" no veía ningún efecto — el bump nunca tenía ninguna clave
+   sobre la que aplicarse. Se corrigió para recorrer todos los músculos
+   conocidos (`MUSCLES`), no solo los presentes en el mapa de entrada.
+3. **`explainFatigueImpact` tampoco se llamaba desde `generateWeeklyPlan`.**
+   Había que invocarla aparte con los parámetros exactos para obtener la
+   frase del §16; ahora `DayPlan.fatigueExplanation` la lleva integrada,
+   calculada automáticamente cada día.
+4. **`painZones` del check-in nunca llegaba al gate duro real.** Se mostraba
+   el aviso de seguridad, pero el plan generado seguía pudiendo incluir
+   ejercicios de esa zona porque `dayCtx.user.painZones` no incorporaba
+   `todayCheckIn.painZones`. Corregido: se unen al `painZones` que ya
+   trajera el usuario, para ese primer día.
+
+Los cuatro se verifican en `tests/weeklyPlan.test.ts` con datos reales, no
+solo releyendo el código — la lección repetida es que un módulo con tests
+propios no garantiza que el pipeline real lo use.
+
 ## 3. Fatiga en el motor de scoring: amortiguación, no gate
 
 `fatigueGate` deja de ser el stub neutral de FASE 1. Igual que la
