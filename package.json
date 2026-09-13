@@ -7,6 +7,7 @@
   "scripts": {
     "scenario": "tsx src/scenarios/muscleup-user.ts",
     "check-data": "tsx src/scenarios/check-data-integrity.ts",
+    "weekly-plan": "tsx src/scenarios/weekly-plan-demo.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

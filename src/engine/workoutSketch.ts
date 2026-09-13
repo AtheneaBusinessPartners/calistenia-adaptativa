@@ -1,4 +1,5 @@
-import type { Exercise, ExerciseScoreBreakdown } from "./types.js";
+import type { Exercise, ExerciseScoreBreakdown, MovementPatternId } from "./types.js";
+import { parseAverage } from "./rangeText.js";
 
 export interface WorkoutBlockItem {
   block: string;
@@ -12,14 +13,6 @@ const MAX_BONUS_SETS = 2;
 const SECONDS_PER_REP = 3; // asunción de tempo controlado en calistenia; ver docs/architecture-v1.md
 const WARMUP_FRACTION = 0.15;
 const MAX_WARMUP_MINUTES = 5;
-
-function parseAverage(text: string | undefined): number | null {
-  if (!text) return null;
-  const numbers = text.match(/\d+(\.\d+)?/g);
-  if (!numbers || numbers.length === 0) return null;
-  const values = numbers.map(Number);
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
 
 /** Segundos de trabajo activo estimados para UNA serie (sin el descanso). */
 function estimateWorkSeconds(exercise: Exercise): number {
@@ -54,9 +47,27 @@ export function assembleWorkoutSketch(
   ranked: ExerciseScoreBreakdown[],
   exercisesById: Record<string, Exercise>,
   sessionDurationMinutes: number,
+  avoidMovementPatterns?: Set<MovementPatternId>,
 ): WorkoutBlockItem[] {
   const used = new Set<string>();
+  // Preferencia BLANDA (§2 de architecture-v2): si hay un candidato que no
+  // repite el patrón de movimiento de ayer, se prefiere; si no hay ninguno,
+  // se cae al ranking normal en vez de dejar el bloque vacío. No es un gate
+  // duro como equipmentGate/painGate — evitar dos días seguidos del mismo
+  // patrón es una buena práctica, no una regla de seguridad.
   const pick = (predicate: (e: Exercise) => boolean) => {
+    if (avoidMovementPatterns && avoidMovementPatterns.size > 0) {
+      const avoided = ranked.find(
+        (s) =>
+          !used.has(s.exerciseId) &&
+          predicate(exercisesById[s.exerciseId]!) &&
+          !avoidMovementPatterns.has(exercisesById[s.exerciseId]!.movementPattern),
+      );
+      if (avoided) {
+        used.add(avoided.exerciseId);
+        return avoided;
+      }
+    }
     const found = ranked.find((s) => !used.has(s.exerciseId) && predicate(exercisesById[s.exerciseId]!));
     if (found) used.add(found.exerciseId);
     return found;
