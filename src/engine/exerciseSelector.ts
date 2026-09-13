@@ -8,6 +8,7 @@ import type {
 import { estimateMovementFrontier, exerciseProgressRatio } from "./capabilityProfile.js";
 import { GOAL_CAPABILITY_MAP, SCORING_WEIGHTS } from "./scoringWeights.js";
 import { EXERCISES_BY_ID } from "../data/exercises.js";
+import { exerciseFatigueLoad } from "./fatigueEngine.js";
 import type { CapabilityId } from "./types.js";
 
 export interface SelectorContext {
@@ -111,6 +112,17 @@ function progressionReadiness(exercise: Exercise, user: UserContext): number {
 // el ejercicio más avanzado sigue siendo mejor que nada.
 const READINESS_DAMPING_FLOOR = 0.15;
 
+// Piso de la amortiguación por fatiga (FASE 3, §3 de architecture-v3): más
+// estricto que el de preparación porque la fatiga debe pesar más como
+// freno, pero sigue sin ser 0 — un músculo fatigado se entrena con
+// cuidado, no se prohíbe (eso es lo que distingue fatiga de dolor).
+const FATIGUE_DAMPING_FLOOR = 0.1;
+
+function fatigueDampingFactor(exercise: Exercise, user: UserContext): number {
+  const load = exerciseFatigueLoad(exercise, user.fatigueByMuscle); // 0-100
+  return Math.max(FATIGUE_DAMPING_FLOOR, 1 - load / 100);
+}
+
 export function scoreExercise(exercise: Exercise, ctx: SelectorContext): ExerciseScoreBreakdown {
   if (!equipmentGate(exercise, ctx.user.profile.equipment)) {
     return zeroScore(exercise.id, "Falta material requerido");
@@ -139,12 +151,20 @@ export function scoreExercise(exercise: Exercise, ctx: SelectorContext): Exercis
   const readinessDamping = Math.max(READINESS_DAMPING_FLOOR, lc);
   const relevance = (SCORING_WEIGHTS.skillRelevance * sr + SCORING_WEIGHTS.capabilityFit * cf) * readinessDamping;
 
-  const total =
+  const rawTotal =
     relevance +
     SCORING_WEIGHTS.levelCompatibility * lc +
     SCORING_WEIGHTS.goalRelevance * gr +
     SCORING_WEIGHTS.progressionReadiness * pr +
     SCORING_WEIGHTS.preference * pref;
+
+  // La fatiga (FASE 3) amortigua el total entero, no solo la relevancia: un
+  // músculo muy cargado debe desanimar TODO lo que lo trabaja, no solo lo
+  // "muy avanzado" — por eso es un factor aparte del de preparación, no el
+  // mismo. Nunca es un gate (ver FATIGUE_DAMPING_FLOOR): el dolor bloquea,
+  // la fatiga solo desanima.
+  const fatigueDamping = fatigueDampingFactor(exercise, ctx.user);
+  const total = rawTotal * fatigueDamping;
 
   return {
     exerciseId: exercise.id,
@@ -155,6 +175,7 @@ export function scoreExercise(exercise: Exercise, ctx: SelectorContext): Exercis
     goalRelevance: gr,
     progressionReadiness: pr,
     preference: pref,
+    fatigueDamping,
     gated: false,
   };
 }
@@ -169,6 +190,7 @@ function zeroScore(exerciseId: string, reason: string): ExerciseScoreBreakdown {
     goalRelevance: 0,
     progressionReadiness: 0,
     preference: 0,
+    fatigueDamping: 0,
     gated: true,
     gateReason: reason,
   };

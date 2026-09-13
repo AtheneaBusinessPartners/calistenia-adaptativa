@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeCapabilityProfile } from "../src/engine/capabilityProfile.js";
 import { evaluateSkillGate } from "../src/engine/skillGate.js";
-import { rankExercises } from "../src/engine/exerciseSelector.js";
+import { rankExercises, type SelectorContext } from "../src/engine/exerciseSelector.js";
 import { generateWeeklyPlan } from "../src/engine/weeklyPlan.js";
 import { planNextSession } from "../src/engine/sessionPlanner.js";
 import type { SessionLogEntry } from "../src/engine/progression.js";
@@ -48,8 +48,9 @@ describe("Integración FASE 1 + FASE 2 — objetivo front lever (no muscle-up), 
   const capabilityProfile = computeCapabilityProfile(assessment, EXERCISES_BY_ID);
   const targetSkill = SKILLS_BY_ID["front_lever"]!;
   const gate = evaluateSkillGate(targetSkill, assessment, capabilityProfile);
-  const ranked = rankExercises(EXERCISES, { user: { profile, assessment, capabilityProfile }, targetSkill, limitations: gate.limitations });
-  const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek);
+  const ctx: SelectorContext = { user: { profile, assessment, capabilityProfile }, targetSkill, limitations: gate.limitations };
+  const ranked = rankExercises(EXERCISES, ctx);
+  const plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek);
 
   it("FASE 1: identifica tuck_front_lever_hold como la limitación de mayor prioridad", () => {
     expect(gate.limitations[0]?.requirement.type === "exercise" && gate.limitations[0]?.requirement.exerciseId).toBe(
@@ -117,10 +118,10 @@ describe("Integración FASE 1 + FASE 2 — objetivo front lever (no muscle-up), 
     const history: SessionLogEntry[] = [{ seconds: 8, rir: 2, techniqueOk: true }];
     const exercise = EXERCISES_BY_ID["tuck_front_lever_hold"]!;
 
-    generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 5);
+    generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 5);
     const at5Days = planNextSession(exercise, history, EXERCISES_BY_ID);
 
-    generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, 3);
+    generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, 3);
     const at3Days = planNextSession(exercise, history, EXERCISES_BY_ID);
 
     expect(at3Days).toEqual(at5Days);
@@ -150,7 +151,8 @@ describe("Integración — caso límite: objetivo pide material que el usuario n
   const capabilityProfile = computeCapabilityProfile(assessment, EXERCISES_BY_ID);
   const targetSkill = SKILLS_BY_ID["front_lever"]!;
   const gate = evaluateSkillGate(targetSkill, assessment, capabilityProfile);
-  const ranked = rankExercises(EXERCISES, { user: { profile, assessment, capabilityProfile }, targetSkill, limitations: gate.limitations });
+  const ctx: SelectorContext = { user: { profile, assessment, capabilityProfile }, targetSkill, limitations: gate.limitations };
+  const ranked = rankExercises(EXERCISES, ctx);
 
   it("el ranking nunca incluye un ejercicio que requiera barra/paralelas/anillas/bandas", () => {
     for (const scored of ranked) {
@@ -161,7 +163,7 @@ describe("Integración — caso límite: objetivo pide material que el usuario n
   });
 
   it("aun así se genera un plan completo de 4 días sin romper y sin días vacíos", () => {
-    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek);
+    const plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek);
     expect(plan.days).toHaveLength(4);
     for (const day of plan.days) {
       expect(day.blocks.length).toBeGreaterThan(0);
@@ -169,7 +171,7 @@ describe("Integración — caso límite: objetivo pide material que el usuario n
   });
 
   it("ningún bloque de ningún día usa material que el usuario no tiene", () => {
-    const plan = generateWeeklyPlan(ranked, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek);
+    const plan = generateWeeklyPlan(EXERCISES, ctx, EXERCISES_BY_ID, profile.sessionDurationMinutes, profile.daysPerWeek);
     for (const block of allBlocks(plan)) {
       const required = block.exercise.equipment.filter((e) => e !== "none");
       expect(required).toHaveLength(0);

@@ -1,6 +1,8 @@
 import { EXERCISES, EXERCISES_BY_ID } from "../data/exercises.js";
 import { SKILLS } from "../data/skills.js";
 import { MOVEMENT_CHAINS } from "../data/chains.js";
+import { MUSCLES } from "../data/muscles.js";
+import { MUSCLE_RECOVERY_DAYS } from "../data/muscleRecovery.js";
 
 // Chequeo de integridad referencial del catálogo. No es un test de
 // comportamiento del motor (eso está en tests/) — es una validación de que
@@ -93,6 +95,18 @@ for (const ex of EXERCISES) {
       fail(`${ex.id}(difficulty=${ex.difficulty}).regressions -> ${id}(difficulty=${prev.difficulty}) es más difícil, no más fácil`);
     }
   }
+}
+
+// FASE 3: todo músculo real debería tener un valor explícito de recuperación
+// (si no, cae en silencio a DEFAULT_RECOVERY_DAYS sin que nadie lo note al
+// añadir un músculo nuevo), y no debería haber entradas huérfanas que ya no
+// correspondan a ningún músculo.
+const muscleIds = new Set(MUSCLES.map((m) => m.id));
+for (const m of MUSCLES) {
+  if (!(m.id in MUSCLE_RECOVERY_DAYS)) fail(`muscleRecovery.ts no tiene entrada para "${m.id}" (cae al valor por defecto)`);
+}
+for (const id of Object.keys(MUSCLE_RECOVERY_DAYS)) {
+  if (!muscleIds.has(id)) fail(`muscleRecovery.ts tiene "${id}" pero no existe ese músculo en muscles.ts`);
 }
 
 console.log(`${EXERCISES.length} ejercicios, ${SKILLS.length} skills, ${Object.keys(MOVEMENT_CHAINS).length} cadenas revisadas.`);

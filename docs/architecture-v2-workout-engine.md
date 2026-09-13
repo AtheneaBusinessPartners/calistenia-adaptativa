@@ -41,16 +41,18 @@ esa tabla.
 - **`priority_focus`**: la sesión se genera igual que en FASE 1 (sin
   restricciones), así que el patrón de movimiento de la limitación principal
   gana de forma natural (es el que puntúa más alto en `rankExercises`).
-- **`complementary`**: se pide al ensamblador que evite, si puede, el patrón
-  de movimiento que fue "Fuerza principal" el día anterior — una regla de
-  separación mínima, no un motor de fatiga real. Es una **preferencia
-  blanda**: si no hay alternativa razonable, el ensamblador cae otra vez al
-  ranking normal en vez de dejar el día vacío o forzar un ejercicio absurdo.
+- **`complementary`**: en esta fase, se pedía al ensamblador que evitara, si
+  podía, el patrón de movimiento que fue "Fuerza principal" el día anterior
+  — una regla de separación mínima, no un motor de fatiga real.
 
-Esto es deliberadamente un placeholder hasta FASE 3: hoy "evitar
-sobrecargar" se basa en "¿qué patrón até ayer?", no en fatiga real por
-músculo acumulada a lo largo de la semana. `fatigueByMuscle` en
-`UserContext` sigue siendo el gancho para cuando exista ese motor.
+> **Actualizado en FASE 3**: esta regla de "evitar el patrón de ayer" se
+> **eliminó**, no se mantuvo como fallback. Con las plantillas de más
+> arriba (todas empiezan con `priority_focus`), para cuando se genera
+> cualquier día `complementary` ya existe fatiga real de los días previos de
+> esa misma semana — la regla basada en "¿qué até ayer?" nunca llegaba a
+> activarse de verdad una vez había fatiga real disponible, así que
+> mantenerla sin uso habría sido código muerto. Ver
+> `docs/architecture-v3-fatigue-engine.md` §3.
 
 ## 3. Progresión de volumen sesión a sesión (§13)
 

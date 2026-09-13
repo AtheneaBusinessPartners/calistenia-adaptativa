@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseScoreBreakdown, MovementPatternId } from "./types.js";
+import type { Exercise, ExerciseScoreBreakdown } from "./types.js";
 import { parseAverage } from "./rangeText.js";
 import type { NextSessionPrescription } from "./sessionPlanner.js";
 
@@ -49,27 +49,9 @@ export function assembleWorkoutSketch(
   ranked: ExerciseScoreBreakdown[],
   exercisesById: Record<string, Exercise>,
   sessionDurationMinutes: number,
-  avoidMovementPatterns?: Set<MovementPatternId>,
 ): WorkoutBlockItem[] {
   const used = new Set<string>();
-  // Preferencia BLANDA (§2 de architecture-v2): si hay un candidato que no
-  // repite el patrón de movimiento de ayer, se prefiere; si no hay ninguno,
-  // se cae al ranking normal en vez de dejar el bloque vacío. No es un gate
-  // duro como equipmentGate/painGate — evitar dos días seguidos del mismo
-  // patrón es una buena práctica, no una regla de seguridad.
   const pick = (predicate: (e: Exercise) => boolean) => {
-    if (avoidMovementPatterns && avoidMovementPatterns.size > 0) {
-      const avoided = ranked.find(
-        (s) =>
-          !used.has(s.exerciseId) &&
-          predicate(exercisesById[s.exerciseId]!) &&
-          !avoidMovementPatterns.has(exercisesById[s.exerciseId]!.movementPattern),
-      );
-      if (avoided) {
-        used.add(avoided.exerciseId);
-        return avoided;
-      }
-    }
     const found = ranked.find((s) => !used.has(s.exerciseId) && predicate(exercisesById[s.exerciseId]!));
     if (found) used.add(found.exerciseId);
     return found;

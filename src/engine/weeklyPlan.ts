@@ -1,19 +1,32 @@
-import type { Exercise, ExerciseScoreBreakdown } from "./types.js";
+import type { Exercise, TrainingDay } from "./types.js";
 import { assembleWorkoutSketch, type WorkoutBlockItem } from "./workoutSketch.js";
 import { getWeeklySplitTemplate, type DayArchetype } from "../data/weeklySplitTemplates.js";
 import { planNextSession } from "./sessionPlanner.js";
 import type { SessionLogEntry } from "./progression.js";
+import { rankExercises, type SelectorContext } from "./exerciseSelector.js";
+import { computeMuscleFatigue } from "./fatigueEngine.js";
 
 export interface DayPlan {
   dayIndex: number; // 0-based dentro de la semana, no un día de calendario concreto
   archetype: DayArchetype;
   focusLabel: string;
   blocks: WorkoutBlockItem[];
+  fatigueByMuscle: Record<string, number>; // fatiga con la que se generó este día, para depurar/explicar
 }
 
 export interface WeeklyPlan {
   daysPerWeek: number;
   days: DayPlan[];
+}
+
+export interface GenerateWeeklyPlanOptions {
+  historyByExercise?: Record<string, SessionLogEntry[]>;
+  /** Entrenamientos ya realizados ANTES de esta semana (daysAgo relativo al
+   * día 0 de la semana que se va a generar). Sin esto, la fatiga del día 0
+   * parte de cero (usuario recién llegado o sin historial reciente) — el
+   * resto de días de la semana igualmente acumulan fatiga real generada
+   * por los propios días anteriores de esa semana. */
+  trainingLog?: TrainingDay[];
 }
 
 /**
@@ -62,57 +75,73 @@ function applyPrescription(
   return { ...item, exercise, sets: prescription.sets, prescription };
 }
 
+function dayAsTrainingDay(blocks: WorkoutBlockItem[]): TrainingDay {
+  return {
+    daysAgo: 0,
+    exercises: blocks.map((b) => ({
+      exerciseId: b.exercise.id,
+      sets: b.sets,
+      reps: b.prescription?.targetReps,
+      seconds: b.prescription?.targetSeconds,
+      rir: 2, // intensidad prescrita típica; no hay dato real hasta que se registre la sesión
+    })),
+  };
+}
+
 /**
  * Genera un plan de varios días a partir de una plantilla de arquetipos
- * (§20 del brief). Cada día se construye reutilizando
- * `assembleWorkoutSketch` de FASE 1 — un día "priority_focus" no restringe
- * nada (así el patrón de movimiento de la limitación principal gana solo,
- * por ranking); un día "complementary" evita, si puede, el patrón de
- * movimiento que fue "Fuerza principal" el día anterior. Si se pasa
- * `historyByExercise`, cada bloque se ajusta además con
- * `applyTrainingHistory` para reflejar la progresión real, no solo el
- * rango recomendado estático de la ficha del ejercicio.
+ * (§20 del brief), re-rankeando los ejercicios CADA DÍA con la fatiga
+ * acumulada hasta ese punto — el entrenamiento del lunes fatiga el martes.
+ * Esto sustituye por completo la heurística de FASE 2 ("evitar el patrón de
+ * movimiento de ayer"): con las plantillas actuales el primer día siempre es
+ * "priority_focus" y genera su propia fatiga, así que para cualquier día
+ * posterior ya hay una señal real que usar — la heurística nunca llegaba a
+ * activarse de verdad, así que se elimina en vez de mantenerla sin usar.
  *
- * Ver docs/architecture-v2-workout-engine.md §2-3.
+ * `exercises`/`ctx` son los mismos que se le pasarían a `rankExercises` —
+ * este generador vuelve a llamarlo internamente una vez por día porque la
+ * fatiga (a diferencia de la capacidad o el gate de skill) cambia dentro de
+ * la propia semana que se está generando.
+ *
+ * Ver docs/architecture-v2-workout-engine.md §2-3 y
+ * docs/architecture-v3-fatigue-engine.md §3.
  */
 export function generateWeeklyPlan(
-  ranked: ExerciseScoreBreakdown[],
+  exercises: Exercise[],
+  ctx: SelectorContext,
   exercisesById: Record<string, Exercise>,
   sessionDurationMinutes: number,
   daysPerWeek: number,
-  historyByExercise?: Record<string, SessionLogEntry[]>,
+  options?: GenerateWeeklyPlanOptions,
 ): WeeklyPlan {
   const template = getWeeklySplitTemplate(daysPerWeek);
   const days: DayPlan[] = [];
-  let avoidPatterns: Set<Exercise["movementPattern"]> | undefined;
+  const runningLog: TrainingDay[] = (options?.trainingLog ?? []).map((d) => ({ ...d, exercises: [...d.exercises] }));
 
   template.forEach((archetype, dayIndex) => {
-    let blocks = assembleWorkoutSketch(
-      ranked,
-      exercisesById,
-      sessionDurationMinutes,
-      archetype === "complementary" ? avoidPatterns : undefined,
-    );
-
-    if (historyByExercise) {
-      blocks = applyTrainingHistory(blocks, historyByExercise, exercisesById);
+    if (dayIndex > 0) {
+      for (const d of runningLog) d.daysAgo += 1;
     }
 
-    // El patrón a evitar el día siguiente se decide DESPUÉS de aplicar el
-    // historial: si avanzar/regresar de línea cambió el ejercicio (y la
-    // mayoría de progressions/regressions se quedan en el mismo
-    // movementPattern, pero no todas — p.ej. handstand libre -> HSPU libre
-    // cruza de balance_hold a vertical_push), lo que importa para espaciar
-    // el estímulo del día siguiente es el patrón REALMENTE entrenado hoy.
-    const mainBlock = blocks.find((b) => b.block === "Fuerza principal");
-    avoidPatterns = mainBlock ? new Set([mainBlock.exercise.movementPattern]) : undefined;
+    const fatigueByMuscle = computeMuscleFatigue(runningLog, exercisesById);
+    const dayCtx: SelectorContext = { ...ctx, user: { ...ctx.user, fatigueByMuscle } };
+    const ranked = rankExercises(exercises, dayCtx);
+
+    let blocks = assembleWorkoutSketch(ranked, exercisesById, sessionDurationMinutes);
+
+    if (options?.historyByExercise) {
+      blocks = applyTrainingHistory(blocks, options.historyByExercise, exercisesById);
+    }
 
     days.push({
       dayIndex,
       archetype,
       focusLabel: archetype === "priority_focus" ? "Prioridad (limitación principal)" : "Complementario",
       blocks,
+      fatigueByMuscle,
     });
+
+    runningLog.push(dayAsTrainingDay(blocks));
   });
 
   return { daysPerWeek: template.length, days };

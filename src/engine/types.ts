@@ -215,7 +215,8 @@ export interface ExerciseScoreBreakdown {
   goalRelevance: number;
   progressionReadiness: number;
   preference: number;
-  gated: boolean; // true si equipmentGate/fatigueGate/painGate lo anuló
+  fatigueDamping: number; // 0.1-1, cuánto se ha reducido `total` por fatiga muscular (1 = sin reducir)
+  gated: boolean; // true si equipmentGate/painGate lo anuló (la fatiga amortigua, no anula — ver §3 de architecture-v3)
   gateReason?: string;
 }
 
@@ -232,4 +233,40 @@ export interface ProgressionResult {
   decision: ProgressionDecision;
   reasons: string[];
   nextCriteriaToWatch: string[];
+}
+
+// ---- FASE 3: motor de fatiga ----
+
+export interface PerformedExercise {
+  exerciseId: string;
+  sets: number;
+  reps?: number;
+  seconds?: number;
+  rir?: number; // reps in reserve reportadas; ausente = asumir esfuerzo moderado
+}
+
+/** Un día de entrenamiento ya realizado. `daysAgo` es relativo a "hoy" (0),
+ * no una fecha real — evita atar el motor a un reloj hasta que exista
+ * persistencia real en FASE 4. */
+export interface TrainingDay {
+  daysAgo: number;
+  exercises: PerformedExercise[];
+}
+
+export type FeelingLevel = "very_tired" | "tired" | "normal" | "good" | "excellent";
+export type SleepQuality = "poor" | "fair" | "good";
+export type LevelRating = "low" | "medium" | "high";
+export type PainSeverity = "mild" | "moderate" | "severe";
+
+/** Check-in antes de entrenar (§15 del brief). `fatigueZones` y `painZones`
+ * se mantienen deliberadamente separados: la fatiga se amortigua, el dolor
+ * bloquea (ver docs/architecture-v3-fatigue-engine.md §2). */
+export interface CheckIn {
+  feeling: FeelingLevel;
+  sleepQuality: SleepQuality;
+  stress: LevelRating;
+  motivation: LevelRating;
+  fatigueZones?: string[]; // Muscle.id[]
+  painZones?: string[]; // Muscle.id[]
+  painSeverity?: PainSeverity;
 }
