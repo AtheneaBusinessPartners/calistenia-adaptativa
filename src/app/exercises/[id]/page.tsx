@@ -14,7 +14,8 @@ export default async function ExercisePage({ params }: { params: Promise<{ id: s
       </Link>
       <h1 className="mb-1 text-xl font-semibold">{exercise.name}</h1>
       <p className="mb-4 text-sm text-[var(--muted)]">
-        {exercise.category} · {exercise.movementPattern} · dificultad {exercise.difficulty}/10
+        {exercise.category} · {exercise.movementPattern} · dificultad {exercise.difficulty}/10 · descansa{" "}
+        {exercise.restSeconds}s entre series
       </p>
 
       <Section title="Cómo hacerlo">

@@ -6,7 +6,19 @@ import { EXERCISES_BY_ID } from "../data/exercises.js";
 import { SKILLS } from "../data/skills.js";
 import { TRAINING_ENVIRONMENTS, resolveEquipment } from "../data/trainingEnvironments.js";
 import { completeOnboarding } from "../lib/actions/onboarding.js";
-import type { AssessmentEntry, ActivityLevel, ExperienceLevel, GoalId, UserProfile } from "../engine/types.js";
+import type { AssessmentEntry, ActivityLevel, ExerciseCategory, ExperienceLevel, GoalId, UserProfile } from "../engine/types.js";
+
+// Contexto breve por categoría para que el test de evaluación no se sienta
+// como una lista de preguntas sueltas — cada ejercicio explica brevemente
+// qué está midiendo (petición del usuario: hacerlo más interactivo/menos
+// aburrido, en la línea de apps como Better Me).
+const CATEGORY_INFO: Record<ExerciseCategory, { emoji: string; label: string; why: string }> = {
+  pull: { emoji: "💪", label: "Fuerza de tirón", why: "Cuánto puedes tirar de tu propio peso." },
+  push: { emoji: "🙌", label: "Fuerza de empuje", why: "Cuánto puedes empujar tu propio peso." },
+  legs: { emoji: "🦵", label: "Fuerza de pierna", why: "Fuerza y control de tus piernas." },
+  core: { emoji: "🧘", label: "Core", why: "Estabilidad de tu tronco." },
+  skill: { emoji: "🤸", label: "Equilibrio y control", why: "Tu control corporal y equilibrio." },
+};
 
 // Cadenas que cubre el test adaptativo de onboarding: una por patrón básico
 // (tirón, empuje vertical, empuje horizontal, pierna, core, equilibrio) —
@@ -298,35 +310,60 @@ export function OnboardingWizard() {
 
       {step === "assessment" && (
         <Section title="Evaluación inicial">
+          <div className="mb-5 flex gap-1.5">
+            {ASSESSMENT_CHAINS.map((chain, i) => (
+              <div
+                key={chain}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  i < assessmentIndex ? "bg-[var(--accent)]" : i === assessmentIndex && !assessmentDone ? "bg-[var(--accent-dim)]" : "bg-[var(--border)]"
+                }`}
+              />
+            ))}
+          </div>
           {!assessmentDone && currentExercise ? (
-            <div>
-              <p className="mb-1 text-sm text-[var(--muted)]">
-                Cadena {assessmentIndex + 1} de {ASSESSMENT_CHAINS.length}
-              </p>
-              <p className="mb-3 font-medium">{currentExercise.name}</p>
-              <p className="mb-3 text-sm text-[var(--muted)]">
+            <div key={currentExercise.id} className="animate-fade-in-up">
+              <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">
+                <span className="text-2xl">{CATEGORY_INFO[currentExercise.category].emoji}</span>
+                <div className="text-sm">
+                  <p className="font-medium">{CATEGORY_INFO[currentExercise.category].label}</p>
+                  <p className="text-[var(--muted)]">{CATEGORY_INFO[currentExercise.category].why}</p>
+                </div>
+              </div>
+              <p className="mb-1 text-center text-lg font-semibold">{currentExercise.name}</p>
+              <p className="mb-4 text-center text-sm text-[var(--muted)]">
                 {currentExercise.masteryCriteria.type === "time" ? "¿Cuántos segundos aguantas?" : "¿Cuántas repeticiones haces?"}
               </p>
-              <input
-                type="number"
-                min={0}
-                value={answerValue}
-                onChange={(e) => setAnswerValue(e.target.value)}
-                placeholder="0 si no puedes hacerlo"
-                className="mb-3 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 outline-none focus:border-[var(--accent)]"
-              />
+              <div className="mb-5 flex items-center justify-center gap-4">
+                <StepperButton label="Restar" onClick={() => setAnswerValue(String(Math.max(0, (Number(answerValue) || 0) - 1)))}>
+                  −
+                </StepperButton>
+                <input
+                  type="number"
+                  min={0}
+                  value={answerValue}
+                  onChange={(e) => setAnswerValue(e.target.value)}
+                  placeholder="0"
+                  className="w-20 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2 py-2 text-center text-2xl font-semibold outline-none focus:border-[var(--accent)]"
+                />
+                <StepperButton label="Sumar" accent onClick={() => setAnswerValue(String((Number(answerValue) || 0) + 1))}>
+                  +
+                </StepperButton>
+              </div>
               <button
                 onClick={() => submitAssessmentAnswer(true)}
-                className="w-full rounded-lg bg-[var(--accent)] px-3 py-2 font-medium text-black"
+                className="w-full rounded-lg bg-[var(--accent)] px-3 py-3 font-medium text-black"
               >
-                Siguiente
+                ✓ Lo consigo
               </button>
-              <button onClick={() => submitAssessmentAnswer(false)} className="mt-2 w-full text-sm text-[var(--muted)] underline">
-                No puedo hacerlo
+              <button
+                onClick={() => submitAssessmentAnswer(false)}
+                className="mt-2 w-full rounded-lg border border-[var(--border)] px-3 py-3 text-sm text-[var(--muted)]"
+              >
+                Todavía no puedo
               </button>
             </div>
           ) : (
-            <p className="text-sm text-[var(--muted)]">Evaluación completa — {answered.length} ejercicios probados.</p>
+            <p className="animate-fade-in-up text-sm text-[var(--muted)]">🎉 Evaluación completa — {answered.length} ejercicios probados.</p>
           )}
         </Section>
       )}
@@ -373,6 +410,31 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
       <div className="flex flex-col gap-3">{children}</div>
     </div>
+  );
+}
+
+function StepperButton({
+  label,
+  onClick,
+  accent,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  accent?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`flex h-11 w-11 items-center justify-center rounded-full border text-xl ${
+        accent ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

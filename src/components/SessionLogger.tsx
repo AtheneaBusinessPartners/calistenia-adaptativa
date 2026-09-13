@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { logSession } from "../lib/actions/session.js";
 import { parseAverage } from "../engine/rangeText.js";
-import type { WorkoutBlockItem } from "../engine/workoutSketch.js";
+import { MAX_WARMUP_MINUTES, type WorkoutBlockItem } from "../engine/workoutSketch.js";
+import { suggestWarmup } from "../engine/warmup.js";
 import type { LoggedSet } from "../lib/repository.js";
 
 interface Props {
@@ -48,6 +49,7 @@ export function SessionLogger({ blocks, archetype }: Props) {
     Object.fromEntries(blocks.map((b) => [b.exercise.id, { achieved: defaultAchieved(b), rir: "2", techniqueOk: true }])),
   );
   const [pending, startTransition] = useTransition();
+  const warmup = useMemo(() => suggestWarmup(blocks.map((b) => b.exercise)), [blocks]);
 
   function updateRow(exerciseId: string, patch: Partial<RowState>) {
     setRows((prev) => ({ ...prev, [exerciseId]: { ...prev[exerciseId]!, ...patch } }));
@@ -77,7 +79,25 @@ export function SessionLogger({ blocks, archetype }: Props) {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="mb-6 text-xl font-semibold">Registra lo que has hecho</h1>
+      <h1 className="mb-1 text-xl font-semibold">Antes de empezar</h1>
+      <p className="mb-4 text-sm text-[var(--muted)]">Calentamiento sugerido (~{MAX_WARMUP_MINUTES} min)</p>
+      <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+        <ul className="flex flex-col gap-2.5 text-sm">
+          {warmup.map((move) => (
+            <li key={move.id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0">{move.name}</span>
+                <span className="flex-shrink-0 whitespace-nowrap text-[var(--muted)]">
+                  {move.reps ?? `${move.seconds}s`}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--muted)]">{move.cue}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <h2 className="mb-6 text-xl font-semibold">Registra lo que has hecho</h2>
 
       <div className="flex flex-col gap-4">
         {blocks.map((b) => {
@@ -89,6 +109,7 @@ export function SessionLogger({ blocks, archetype }: Props) {
               <p className="mb-3 font-medium">{b.exercise.name}</p>
               <p className="mb-3 text-sm text-[var(--muted)]">
                 Objetivo: {b.sets}×{b.prescription?.targetReps ?? b.prescription?.targetSeconds ?? b.exercise.recommendedReps ?? b.exercise.recommendedTime}
+                {" · "}descansa {b.exercise.restSeconds}s entre series
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1 text-sm">

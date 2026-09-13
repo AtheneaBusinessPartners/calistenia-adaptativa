@@ -14,7 +14,10 @@ const MIN_SETS = 2;
 const MAX_BONUS_SETS = 2;
 const SECONDS_PER_REP = 3; // asunción de tempo controlado en calistenia; ver docs/architecture-v1.md
 const WARMUP_FRACTION = 0.15;
-const MAX_WARMUP_MINUTES = 5;
+// Exportado para que la UI (calentamiento sugerido antes de la sesión)
+// muestre la misma duración que ya se reserva aquí en el presupuesto de
+// tiempo, en vez de inventar un número distinto.
+export const MAX_WARMUP_MINUTES = 5;
 
 /** Segundos de trabajo activo estimados para UNA serie (sin el descanso). */
 function estimateWorkSeconds(exercise: Exercise): number {
