@@ -145,6 +145,28 @@ export async function getHistoryByExercise(
   return history;
 }
 
+/**
+ * Fechas (YYYY-MM-DD, tal cual las guarda `performed_at`) de las sesiones
+ * de los últimos `sinceDays` días — para el calendario y las estadísticas
+ * semanales/mensuales del dashboard (src/engine/trainingStats.ts). Puede
+ * haber más de una fila el mismo día (antes de que existiera el guard de
+ * `hasTrainingSessionToday`), de ahí el `Set` para no contar el día dos
+ * veces.
+ */
+export async function getSessionDates(supabase: SupabaseClient, userId: string, sinceDays = 60): Promise<string[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - sinceDays);
+
+  const { data, error } = await supabase
+    .from("training_sessions")
+    .select("performed_at")
+    .eq("user_id", userId)
+    .gte("performed_at", since.toISOString().slice(0, 10));
+  if (error) throw error;
+
+  return Array.from(new Set((data ?? []).map((row) => row.performed_at as string)));
+}
+
 export async function countTrainingSessions(supabase: SupabaseClient, userId: string): Promise<number> {
   const { count, error } = await supabase
     .from("training_sessions")

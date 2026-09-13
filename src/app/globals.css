@@ -33,3 +33,15 @@ body {
 .animate-fade-in-up {
   animation: fade-in-up 0.25s ease-out;
 }
+
+/* Ocultamos las flechas nativas del navegador en inputs numéricos: donde
+   hace falta incrementar/decrementar ya hay un stepper propio (−/+), y
+   donde no lo hay, el usuario teclea el valor directamente. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
