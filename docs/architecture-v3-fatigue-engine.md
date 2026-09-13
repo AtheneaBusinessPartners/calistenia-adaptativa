@@ -153,8 +153,14 @@ la semana**:
 
 - Cuántos ejercicios en curso están en `DELOAD_CANDIDATE` a la vez (varias
   señales locales coincidiendo es una señal global).
-- Fatiga media de los músculos "grandes" (dorsal, pectoral, cuádriceps,
-  isquios) por encima de un umbral sostenido.
+- El **máximo** entre los músculos "grandes" (dorsal, pectoral, cuádriceps,
+  isquios) por encima de un umbral — no la media: un split con un día de
+  tirón muy exigente y piernas apenas tocadas esa semana no debe diluir una
+  fatiga real y alta en dorsal/pectoral con isquios/cuádriceps frescos. Un
+  solo grupo grande sostenido por encima del umbral ya justifica la
+  descarga (mismo hallazgo que el de `exerciseFatigueLoad`, encontrado al
+  repasar esta fase por tercera vez con una semana intensa pero realista,
+  no el extremo original de 8 series a RIR 0 en los 4 grupos a la vez).
 - Sueño reportado como deficiente en varios check-ins recientes.
 - Motivación baja reportada de forma sostenida.
 

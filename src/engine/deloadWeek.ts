@@ -36,12 +36,19 @@ export interface DeloadWeekInputs {
 export function shouldRecommendDeloadWeek(inputs: DeloadWeekInputs): DeloadWeekSignal {
   const reasons: string[] = [];
 
+  // MÁXIMO entre los grupos grandes, no la media: un split que carga mucho
+  // tirón y poco pierna (o viceversa) no debe diluir una fatiga real y alta
+  // en un solo grupo con grupos que ese día simplemente no tocaba (mismo
+  // principio que exerciseFatigueLoad — ver el hallazgo en el repaso de
+  // esta fase). Un solo grupo grande sostenido por encima del umbral ya es
+  // motivo suficiente de descarga.
   const fatigue = computeMuscleFatigue(inputs.trainingLog, inputs.exercisesById);
   const largeMuscleFatigues = LARGE_MUSCLE_GROUPS.map((m) => fatigue[m] ?? 0);
-  const avgLargeMuscleFatigue = largeMuscleFatigues.reduce((a, b) => a + b, 0) / largeMuscleFatigues.length;
-  if (avgLargeMuscleFatigue >= LARGE_MUSCLE_FATIGUE_THRESHOLD) {
+  const maxLargeMuscleFatigue = Math.max(...largeMuscleFatigues);
+  if (maxLargeMuscleFatigue >= LARGE_MUSCLE_FATIGUE_THRESHOLD) {
+    const worstMuscle = LARGE_MUSCLE_GROUPS[largeMuscleFatigues.indexOf(maxLargeMuscleFatigue)];
     reasons.push(
-      `Fatiga media de los grupos musculares grandes en ${Math.round(avgLargeMuscleFatigue)}/100, por encima del umbral de descarga.`,
+      `Fatiga de "${worstMuscle}" en ${Math.round(maxLargeMuscleFatigue)}/100, por encima del umbral de descarga.`,
     );
   }
 

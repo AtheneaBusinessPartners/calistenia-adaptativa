@@ -64,7 +64,41 @@ describe("shouldRecommendDeloadWeek (§24 del brief)", () => {
       exercisesInProgress: [],
     });
     expect(signal.recommend).toBe(true);
-    expect(signal.reasons.some((r) => r.includes("Fatiga media"))).toBe(true);
+    expect(signal.reasons.some((r) => r.includes("Fatiga de"))).toBe(true);
+  });
+
+  it("un solo grupo grande muy fatigado ya recomienda descarga, aunque el resto de grupos grandes estén frescos (no se diluye promediando)", () => {
+    // Split de tirón puro: solo lats/chest cargados a fondo, piernas
+    // intactas. La media de los 4 grupos se quedaría corta; el máximo no.
+    const pullOnlyLog: TrainingDay[] = Array.from({ length: 4 }, (_, i) => ({
+      daysAgo: i,
+      exercises: [
+        { exerciseId: "pull_up", sets: 6, reps: 9, rir: 0 },
+        { exerciseId: "straight_bar_dip", sets: 6, reps: 11, rir: 0 },
+      ],
+    }));
+    const signal = shouldRecommendDeloadWeek({
+      trainingLog: pullOnlyLog,
+      exercisesById: EXERCISES_BY_ID,
+      exercisesInProgress: [],
+    });
+    expect(signal.recommend).toBe(true);
+    expect(signal.reasons.some((r) => r.includes("chest") || r.includes("lats"))).toBe(true);
+  });
+
+  it("una semana normal y sostenible (RIR moderado, volumen moderado) NO recomienda descarga", () => {
+    const normalWeek: TrainingDay[] = [
+      { daysAgo: 0, exercises: [{ exerciseId: "pull_up", sets: 4, reps: 8, rir: 2 }] },
+      { daysAgo: 1, exercises: [{ exerciseId: "bodyweight_squat", sets: 4, reps: 15, rir: 2 }] },
+      { daysAgo: 2, exercises: [{ exerciseId: "straight_bar_dip", sets: 4, reps: 10, rir: 2 }] },
+      { daysAgo: 3, exercises: [{ exerciseId: "bodyweight_squat", sets: 4, reps: 15, rir: 2 }] },
+    ];
+    const signal = shouldRecommendDeloadWeek({
+      trainingLog: normalWeek,
+      exercisesById: EXERCISES_BY_ID,
+      exercisesInProgress: [],
+    });
+    expect(signal.recommend).toBe(false);
   });
 
   it("varios ejercicios en DELOAD_CANDIDATE a la vez recomienda descarga (señal global, no solo local)", () => {
