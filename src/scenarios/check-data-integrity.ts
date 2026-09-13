@@ -15,6 +15,18 @@ function fail(msg: string) {
   errors++;
 }
 
+// 0. IDs duplicados: Object.fromEntries se quedaría en silencio con el
+// último y ocultaría el problema, así que hay que comprobarlo aparte.
+function checkDuplicates(ids: string[], label: string) {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) fail(`${label}: id duplicado "${id}"`);
+    seen.add(id);
+  }
+}
+checkDuplicates(EXERCISES.map((e) => e.id), "exercises");
+checkDuplicates(SKILLS.map((s) => s.id), "skills");
+
 const skillIds = new Set(SKILLS.map((s) => s.id));
 for (const ex of EXERCISES) {
   for (const id of ex.regressions ?? []) {
