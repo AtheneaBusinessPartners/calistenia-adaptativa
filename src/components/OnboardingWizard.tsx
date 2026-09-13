@@ -33,18 +33,27 @@ const ASSESSMENT_CHAINS = [
   "handstand_chain",
 ];
 
-const GOAL_OPTIONS: { id: GoalId; label: string }[] = [
-  { id: "strength", label: "Ganar fuerza" },
-  { id: "muscle_mass", label: "Ganar masa muscular" },
-  { id: "fat_loss", label: "Perder grasa" },
-  { id: "conditioning", label: "Mejorar condición física" },
-  { id: "learn_skills", label: "Aprender skills" },
-  { id: "mobility", label: "Mejorar movilidad" },
-  { id: "explosiveness", label: "Mejorar explosividad" },
-  { id: "endurance", label: "Mejorar resistencia" },
-  { id: "competition", label: "Prepararme para una competición" },
-  { id: "specific_skill", label: "Conseguir una skill concreta" },
+const GOAL_OPTIONS: { id: GoalId; label: string; emoji: string }[] = [
+  { id: "strength", label: "Ganar fuerza", emoji: "💪" },
+  { id: "muscle_mass", label: "Ganar masa muscular", emoji: "🏋️" },
+  { id: "fat_loss", label: "Perder grasa", emoji: "🔥" },
+  { id: "conditioning", label: "Mejorar condición física", emoji: "🏃" },
+  { id: "learn_skills", label: "Aprender skills", emoji: "🤸" },
+  { id: "mobility", label: "Mejorar movilidad", emoji: "🧘" },
+  { id: "explosiveness", label: "Mejorar explosividad", emoji: "⚡" },
+  { id: "endurance", label: "Mejorar resistencia", emoji: "⏱️" },
+  { id: "competition", label: "Prepararme para una competición", emoji: "🏆" },
+  { id: "specific_skill", label: "Conseguir una skill concreta", emoji: "🎯" },
 ];
+
+const ENVIRONMENT_ICONS: Record<string, string> = {
+  pure_calisthenics: "🤸",
+  calisthenics_plus_gym: "🏋️",
+  gym_for_calisthenics: "🏢",
+  minimalist: "🎒",
+  home: "🏠",
+  park: "🌳",
+};
 
 type Step = "profile" | "goals" | "availability" | "equipment" | "assessment" | "review";
 const STEPS: Step[] = ["profile", "goals", "availability", "equipment", "assessment", "review"];
@@ -153,10 +162,16 @@ export function OnboardingWizard() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
-      <p className="mb-4 text-sm text-[var(--muted)]">
+      <p className="mb-2 text-xs text-[var(--muted)]">
         Paso {stepIndex + 1} de {STEPS.length}
       </p>
+      <div className="mb-6 flex gap-1.5">
+        {STEPS.map((s, i) => (
+          <div key={s} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= stepIndex ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`} />
+        ))}
+      </div>
 
+      <div key={step} className="animate-fade-in-up">
       {step === "profile" && (
         <Section title="Sobre ti">
           <NumberField
@@ -166,7 +181,7 @@ export function OnboardingWizard() {
             min={10}
             max={100}
           />
-          <SelectField
+          <ChipSelect
             label="Sexo"
             value={profile.sex}
             options={[
@@ -174,7 +189,7 @@ export function OnboardingWizard() {
               { value: "female", label: "Mujer" },
               { value: "other", label: "Prefiero no decirlo" },
             ]}
-            onChange={(v) => setProfile((p) => ({ ...p, sex: v as UserProfile["sex"] }))}
+            onChange={(v) => setProfile((p) => ({ ...p, sex: v }))}
           />
           <NumberField
             label="Altura (cm)"
@@ -197,7 +212,7 @@ export function OnboardingWizard() {
             min={0}
             max={80}
           />
-          <SelectField
+          <ChipSelect
             label="Experiencia con calistenia"
             value={profile.calisthenicsExperience}
             options={[
@@ -206,7 +221,7 @@ export function OnboardingWizard() {
               { value: "intermediate", label: "Intermedia" },
               { value: "advanced", label: "Avanzada" },
             ]}
-            onChange={(v) => setProfile((p) => ({ ...p, calisthenicsExperience: v as ExperienceLevel }))}
+            onChange={(v) => setProfile((p) => ({ ...p, calisthenicsExperience: v }))}
           />
           <NumberField
             label="Horas de sueño (media)"
@@ -215,7 +230,7 @@ export function OnboardingWizard() {
             min={0}
             max={14}
           />
-          <SelectField
+          <ChipSelect
             label="Nivel de actividad diaria"
             value={profile.activityLevel}
             options={[
@@ -224,7 +239,7 @@ export function OnboardingWizard() {
               { value: "moderate", label: "Moderado" },
               { value: "active", label: "Activo" },
             ]}
-            onChange={(v) => setProfile((p) => ({ ...p, activityLevel: v as ActivityLevel }))}
+            onChange={(v) => setProfile((p) => ({ ...p, activityLevel: v }))}
           />
         </Section>
       )}
@@ -232,20 +247,45 @@ export function OnboardingWizard() {
       {step === "goals" && (
         <Section title="Objetivos">
           <p className="mb-2 text-sm text-[var(--muted)]">Marca todos los que te interesen:</p>
-          <div className="mb-4 flex flex-col gap-2">
-            {GOAL_OPTIONS.map((g) => (
-              <label key={g.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={goals.includes(g.id)} onChange={() => toggleGoal(g.id)} />
-                {g.label}
-              </label>
-            ))}
+          <div className="mb-5 grid grid-cols-2 gap-2">
+            {GOAL_OPTIONS.map((g) => {
+              const active = goals.includes(g.id);
+              return (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => toggleGoal(g.id)}
+                  className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left text-sm ${
+                    active ? "border-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"
+                  }`}
+                >
+                  <span className="text-xl">{g.emoji}</span>
+                  <span>{g.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <SelectField
-            label="Objetivo principal"
-            value={primaryGoal}
-            options={goals.map((g) => ({ value: g, label: GOAL_OPTIONS.find((o) => o.id === g)!.label }))}
-            onChange={(v) => setPrimaryGoal(v as GoalId)}
-          />
+
+          <p className="mb-2 text-sm text-[var(--muted)]">¿Cuál es tu prioridad número uno?</p>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {goals.map((id) => {
+              const opt = GOAL_OPTIONS.find((o) => o.id === id)!;
+              const active = primaryGoal === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPrimaryGoal(id)}
+                  className={`rounded-full border px-3 py-1.5 text-sm ${
+                    active ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"
+                  }`}
+                >
+                  {active ? "★ " : ""}
+                  {opt.emoji} {opt.label}
+                </button>
+              );
+            })}
+          </div>
           {primaryGoal === "specific_skill" && (
             <SelectField
               label="¿Qué skill?"
@@ -300,6 +340,7 @@ export function OnboardingWizard() {
                   checked={environmentId === env.id}
                   onChange={() => setEnvironmentId(env.id)}
                 />
+                <span className="mr-2">{ENVIRONMENT_ICONS[env.id] ?? "🏋️"}</span>
                 <span className="font-medium">{env.name}</span>
                 <span className="ml-2 text-[var(--muted)]">{env.description}</span>
               </label>
@@ -384,6 +425,7 @@ export function OnboardingWizard() {
           </button>
         </Section>
       )}
+      </div>
 
       <div className="mt-6 flex justify-between">
         <button onClick={goBack} disabled={stepIndex === 0} className="text-sm text-[var(--muted)] disabled:opacity-0">
@@ -452,17 +494,67 @@ function NumberField({
   max?: number;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      {label}
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 outline-none focus:border-[var(--accent)]"
-      />
-    </label>
+    <div className="flex flex-col gap-1 text-sm">
+      <span>{label}</span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label="Restar"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] text-lg text-[var(--muted)]"
+        >
+          −
+        </button>
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-center outline-none focus:border-[var(--accent)]"
+        />
+        <button
+          type="button"
+          aria-label="Sumar"
+          onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--accent)] text-lg text-[var(--accent)]"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChipSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      <span>{label}</span>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={`rounded-full border px-3 py-1.5 text-sm ${
+              value === o.value ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
