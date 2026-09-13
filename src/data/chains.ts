@@ -27,6 +27,7 @@ export const MOVEMENT_CHAINS: Record<string, string[]> = {
     "ring_muscle_up",
   ],
   chin_up_line: ["negative_pull_up", "chin_up"],
+  weighted_pull_chain: ["pull_up", "weighted_pull_up"],
   horizontal_pull_chain: ["australian_row"],
   dip_chain: [
     "bench_dip",

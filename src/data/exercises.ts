@@ -242,6 +242,26 @@ export const EXERCISES: Exercise[] = [
     commonErrors: ["No fijar el false grip antes de tirar"],
   },
 
+  {
+    id: "weighted_pull_up",
+    name: "Dominada lastrada",
+    category: "pull",
+    movementPattern: "vertical_pull",
+    difficulty: 6,
+    primaryMuscles: ["lats", "biceps"],
+    secondaryMuscles: ["rhomboids", "forearms"],
+    equipment: ["pullup_bar", "weight_vest"],
+    capabilitiesDeveloped: { pull: 1.0 },
+    regressions: ["pull_up"],
+    masteryCriteria: { type: "sets_x_reps", sets: 3, reps: 5 },
+    recommendedSets: 4,
+    recommendedReps: "3-5",
+    restSeconds: 150,
+    technicalCues: ["Añade lastre solo cuando la dominada limpia sea sólida a 3x8-10"],
+    commonErrors: ["Añadir peso antes de dominar el ROM completo sin lastre"],
+    tags: ["strength", "accessory"],
+  },
+
   // ---- Tracción horizontal ----
   {
     id: "australian_row",

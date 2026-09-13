@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "scenario": "tsx src/scenarios/muscleup-user.ts",
+    "check-data": "tsx src/scenarios/check-data-integrity.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
