@@ -74,6 +74,27 @@ for (const ex of EXERCISES) {
   }
 }
 
+// `difficulty` es la fuente de verdad del "nivel" de un ejercicio dentro de
+// su línea (ver docs/architecture-v1.md §3-4) — si una progresión tuviera
+// una dificultad menor que su propia regresión, capabilityProfile.ts y
+// exerciseSelector.ts (levelCompatibility, estimateMovementFrontier)
+// razonarían al revés sin que ningún test lo detectase, porque ambos
+// confían en que la cadena de datos es monótona.
+for (const ex of EXERCISES) {
+  for (const id of ex.progressions ?? []) {
+    const next = EXERCISES_BY_ID[id];
+    if (next && next.difficulty < ex.difficulty) {
+      fail(`${ex.id}(difficulty=${ex.difficulty}).progressions -> ${id}(difficulty=${next.difficulty}) es más fácil, no más difícil`);
+    }
+  }
+  for (const id of ex.regressions ?? []) {
+    const prev = EXERCISES_BY_ID[id];
+    if (prev && prev.difficulty > ex.difficulty) {
+      fail(`${ex.id}(difficulty=${ex.difficulty}).regressions -> ${id}(difficulty=${prev.difficulty}) es más difícil, no más fácil`);
+    }
+  }
+}
+
 console.log(`${EXERCISES.length} ejercicios, ${SKILLS.length} skills, ${Object.keys(MOVEMENT_CHAINS).length} cadenas revisadas.`);
 console.log(errors === 0 ? "OK: sin errores de integridad." : `${errors} error(es) encontrados.`);
 process.exit(errors === 0 ? 0 : 1);
